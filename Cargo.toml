@@ -1,0 +1,27 @@
+[package]
+name = "dp-back"
+version = "0.1.0"
+edition = "2024"
+
+# Build with mqtt and postgres features enabled
+
+[features]
+default = ["axum", "postgres"]
+axum = ["dep:axum"]
+mqtt = ["dep:rumqttc"]
+in_memory = []
+reqwest = ["dep:reqwest"]
+postgres = ["dep:sqlx"]
+
+[dependencies]
+axum = {version = "0.8.4", optional = true}
+chrono = {version="0.4.41", features = ["serde"] }
+dotenv = "0.15.0"
+reqwest = {version="0.12.20", optional = true}
+rumqttc = {version="0.24.0", optional = true}
+serde = {version="1.0.219", features = ["derive", "serde_derive"]}
+serde_json = "1.0.140"
+sqlx = {version="0.8.6", features = ["postgres", "runtime-tokio", "uuid", "chrono"], optional = true}
+tokio = {version="1.45.1", features = ["full"]}
+tower-http = { version = "0.6.6", features = ["cors", "trace"] }
+uuid = {version="1.17.0", features = ["v4", "serde"]}
