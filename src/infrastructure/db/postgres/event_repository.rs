@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use sqlx::{PgPool, Row};
+use uuid::Uuid;
 
-use crate::{application::ports::outbound::event_repository::{EventRepository, EventRepositoryError}, domain::event::Event};
+use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::event::Event};
 
 pub struct PostgresEventRepository {
     pool: sqlx::PgPool,
@@ -27,7 +28,8 @@ impl PostgresEventRepository {
         .expect("Failed to create events table");
     }
 }
-impl EventRepository for PostgresEventRepository {
+
+impl CreateEventRepository for PostgresEventRepository {
     async fn create_event(&self, evt: Event) -> Result<(), EventRepositoryError> {
         let query = "INSERT INTO events (id, device_id, timestamp, payload) VALUES ($1, $2, $3, $4)
                      ON CONFLICT (id, device_id) DO NOTHING";
@@ -43,8 +45,10 @@ impl EventRepository for PostgresEventRepository {
         
         Ok(())
     }
-    
-    async fn get_events(&self, uid: &uuid::Uuid) -> Result<Vec<Event>, EventRepositoryError> {
+}
+
+impl GetEventRepository for PostgresEventRepository {
+    async fn get_events(&self, uid: &Uuid) -> Result<Vec<Event>, EventRepositoryError> {
         let query = "SELECT id, device_id, timestamp, payload FROM events WHERE device_id = $1";
         let rows = sqlx::query(query)
             .bind(uid)

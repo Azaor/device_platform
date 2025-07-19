@@ -6,7 +6,15 @@ edition = "2024"
 # Build with mqtt and postgres features enabled
 
 [features]
-default = ["axum", "postgres"]
+default = ["axum_inbound", "mqtt_outbound"]
+
+axum_inbound = ["axum"]
+mqtt_inbound = ["mqtt"]
+
+mqtt_outbound = ["mqtt", "postgres"]
+postgres_outbound = ["postgres"]
+in_memory_outbound = ["in_memory"]
+
 axum = ["dep:axum"]
 mqtt = ["dep:rumqttc"]
 in_memory = []

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use sqlx::{postgres::PgQueryResult, PgPool, Row};
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::device_repository::{DeviceRepository, DeviceRepositoryError}, domain::{device::{Device, EventDataType, EventFormat}}, infrastructure::db::postgres::utils::serialize_event_data};
+use crate::{application::ports::outbound::device_repository::{CreateDeviceRepository, DeleteDeviceRepository, DeviceRepositoryError, GetDeviceRepository, UpdateDeviceRepository}, domain::device::{Device, EventDataType, EventFormat}, infrastructure::db::postgres::utils::serialize_event_data};
 
 pub struct PostgresDeviceRepository {
     pool: PgPool,
@@ -32,8 +32,8 @@ impl PostgresDeviceRepository {
     }
 }
 
-impl DeviceRepository for PostgresDeviceRepository {
-    async fn save(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
+impl CreateDeviceRepository for PostgresDeviceRepository {
+    async fn create(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
         let query = "INSERT INTO devices (id, user_id, name, event_format, event_data) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name = $3, event_format = $4, event_data = $5";
         let result: PgQueryResult = sqlx::query(query)
             .bind(sqlx::types::Uuid::from(device.id))
@@ -54,8 +54,10 @@ impl DeviceRepository for PostgresDeviceRepository {
         
         Ok(())
     }
+}
 
-    async fn find_by_id(&self, id: Uuid) -> Result<Option<Device>, crate::application::ports::outbound::device_repository::DeviceRepositoryError> {
+impl GetDeviceRepository for PostgresDeviceRepository {
+    async fn get_by_id(&self, id: Uuid) -> Result<Option<Device>, DeviceRepositoryError> {
         // Query to find a device by its ID
         let query = "SELECT id, user_id, name, event_format, event_data FROM devices WHERE id = $1";
         let row = sqlx::query(query)
@@ -93,8 +95,10 @@ impl DeviceRepository for PostgresDeviceRepository {
         };
         Ok(Some(device))
     }
+}
 
-    async fn delete_by_id(&self, id: Uuid) -> Result<(), crate::application::ports::outbound::device_repository::DeviceRepositoryError> {
+impl DeleteDeviceRepository for PostgresDeviceRepository {
+    async fn delete_by_id(&self, id: Uuid) -> Result<(), DeviceRepositoryError> {
         let query = "DELETE FROM devices WHERE id = $1";
         let result: PgQueryResult = sqlx::query(query)
             .bind(sqlx::types::Uuid::from(id))
@@ -110,3 +114,8 @@ impl DeviceRepository for PostgresDeviceRepository {
     }
 }
 
+impl UpdateDeviceRepository for PostgresDeviceRepository {
+    fn update(&self, device: &Device) -> impl Future<Output = Result<(), DeviceRepositoryError>> + Send {
+        self.create(device)
+    }
+}

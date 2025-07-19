@@ -2,8 +2,8 @@
         run-cli run-web clean
 
 run-axum-inbound:
-	cargo run --no-default-features --features="axum postgres"
+	cargo run --no-default-features --features="axum postgres_outbound"
 
 run-mqtt-inbound:
-	cargo run --no-default-features --features="mqtt postgres"
+	cargo run --no-default-features --features="mqtt_inbound postgres_outbound"
 

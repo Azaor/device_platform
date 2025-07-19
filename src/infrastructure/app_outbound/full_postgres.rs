@@ -3,9 +3,14 @@ use std::{env::VarError, sync::Arc};
 use crate::{
     application::{
         ports::{
-            app::AppState,
+            app::AppOutbound,
             outbound::{
-                device_repository::DeviceRepository, device_state_repository::DeviceStateRepository, event_repository::EventRepository,
+                device_repository::{
+                    CreateDeviceRepository, DeleteDeviceRepository, GetDeviceRepository,
+                    UpdateDeviceRepository,
+                },
+                device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, GetDeviceStateRepository, UpdateDeviceStateRepository},
+                event_repository::{CreateEventRepository, GetEventRepository},
             },
         },
         usecases::{
@@ -14,18 +19,27 @@ use crate::{
         },
     },
     infrastructure::db::postgres::{
-            device_repository::PostgresDeviceRepository,
-            device_state_repository::PostgresDeviceStateRepository, event_repository::PostgresEventRepository,
-        },
+        device_repository::PostgresDeviceRepository,
+        device_state_repository::PostgresDeviceStateRepository,
+        event_repository::PostgresEventRepository,
+    },
 };
 
-pub struct PostgresAppState {
-    device_service: Arc<ManageDeviceService<PostgresDeviceRepository>>,
-    device_state_service: Arc<ManageDeviceStateService<PostgresDeviceStateRepository>>,
-    device_events_service: Arc<ManageEventService<PostgresEventRepository>>,
+pub struct FullPostgresAppOutbound {
+    device_service: Arc<
+        ManageDeviceService<
+            PostgresDeviceRepository,
+            PostgresDeviceRepository,
+            PostgresDeviceRepository,
+            PostgresDeviceRepository,
+        >,
+    >,
+    device_state_service: Arc<ManageDeviceStateService<PostgresDeviceStateRepository, PostgresDeviceStateRepository, PostgresDeviceStateRepository, PostgresDeviceStateRepository>>,
+    device_events_service:
+        Arc<ManageEventService<PostgresEventRepository, PostgresEventRepository>>,
 }
 
-impl PostgresAppState {
+impl FullPostgresAppOutbound {
     pub async fn new() -> Result<Self, VarError> {
         // Load env files or environment variables
         dotenv::dotenv().ok();
@@ -41,15 +55,27 @@ impl PostgresAppState {
         device_state_repo.init().await;
         event_repo.init().await;
 
-        let device_service = Arc::new(ManageDeviceService { repo: device_repo });
+        let arc_device_repo = Arc::new(device_repo);
+        let arc_event_repo = Arc::new(event_repo);
+        let arc_device_state_repo = Arc::new(device_state_repo);
+        let device_service = Arc::new(ManageDeviceService {
+            create_repo: arc_device_repo.clone(),
+            get_repo: arc_device_repo.clone(),
+            update_repo: arc_device_repo.clone(),
+            delete_repo: arc_device_repo,
+        });
         let device_state_service = Arc::new(ManageDeviceStateService {
-            repo: device_state_repo,
+            create_repo: arc_device_state_repo.clone(),
+            get_repo: arc_device_state_repo.clone(),
+            update_repo: arc_device_state_repo.clone(),
+            delete_repo: arc_device_state_repo,
         });
         let device_events_service = Arc::new(ManageEventService {
-            event_repository: event_repo,
+            create_repo: arc_event_repo.clone(),
+            get_repo: arc_event_repo,
         });
 
-        Ok(PostgresAppState {
+        Ok(FullPostgresAppOutbound {
             device_service,
             device_state_service,
             device_events_service,
@@ -57,18 +83,29 @@ impl PostgresAppState {
     }
 }
 
-impl AppState for PostgresAppState {
-    fn get_device_service(&self) -> &Arc<ManageDeviceService<impl DeviceRepository>> {
+impl AppOutbound for FullPostgresAppOutbound {
+    fn get_device_service(
+        &self,
+    ) -> &Arc<
+        ManageDeviceService<
+            impl CreateDeviceRepository,
+            impl GetDeviceRepository,
+            impl UpdateDeviceRepository,
+            impl DeleteDeviceRepository,
+        >,
+    > {
         &self.device_service
     }
 
     fn get_device_state_service(
         &self,
-    ) -> &Arc<ManageDeviceStateService<impl DeviceStateRepository>> {
+    ) -> &Arc<ManageDeviceStateService<impl CreateDeviceStateRepository, impl GetDeviceStateRepository, impl UpdateDeviceStateRepository, impl DeleteDeviceStateRepository>> {
         &self.device_state_service
     }
 
-    fn get_event_service(&self) -> &Arc<ManageEventService<impl EventRepository>> {
+    fn get_event_service(
+        &self,
+    ) -> &Arc<ManageEventService<impl CreateEventRepository, impl GetEventRepository>> {
         &self.device_events_service
     }
 }

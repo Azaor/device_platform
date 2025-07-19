@@ -7,9 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     application::ports::{
-        app::AppState, inbound::{
-            device_state_service::DeviceStateService
-        }
+        app::AppOutbound, inbound::device_state_service::DeviceStateService
     },
     infrastructure::http::axum::error::ErrorResponse
 };
@@ -21,8 +19,8 @@ pub struct DeviceStateResponse {
     pub values: HashMap<String, String>,
 }
 
-pub async fn get_device_state_handler<AS: AppState>(
-    State(app_state): State<Arc<AS>>,
+pub async fn get_device_state_handler<AO: AppOutbound>(
+    State(app_state): State<Arc<AO>>,
     Path(device_id) : Path<String>,
 ) -> Result<Json<DeviceStateResponse>, Response> {
     let service = app_state.get_device_state_service();

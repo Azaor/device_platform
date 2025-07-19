@@ -10,7 +10,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
-    application::ports::{app::AppState, inbound::device_service::DeviceService},
+    application::ports::{app::AppOutbound, inbound::device_service::DeviceService},
     domain::device::EventFormat,
     infrastructure::http::axum::error::ErrorResponse,
 };
@@ -74,8 +74,8 @@ impl TryFrom<Value> for CreateDeviceRequest {
     }
 }
 
-pub async fn create_device_handler<AS: AppState>(
-    State(services): State<Arc<AS>>,
+pub async fn create_device_handler<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<DeviceResponse>, Response> {
     let service = services.get_device_service();
@@ -104,8 +104,8 @@ pub async fn create_device_handler<AS: AppState>(
     }
 }
 
-pub async fn get_device_handler<AS: AppState>(
-    State(services): State<Arc<AS>>,
+pub async fn get_device_handler<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
     Path(device_id): Path<String>,
 ) -> Result<Json<DeviceResponse>, Response> {
     let service = services.get_device_service();
@@ -143,8 +143,8 @@ pub async fn get_device_handler<AS: AppState>(
     }
 }
 
-pub async fn delete_device_handler<AS: AppState>(
-    State(services): State<Arc<AS>>,
+pub async fn delete_device_handler<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
     Path(device_id): Path<String>,
 ) -> Result<(), Response> {
     let service = services.get_device_service();
@@ -165,8 +165,8 @@ pub async fn delete_device_handler<AS: AppState>(
     }
 }
 
-pub async fn update_device_handler<AS: AppState>(
-    State(services): State<Arc<AS>>,
+pub async fn update_device_handler<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
     Path(device_id): Path<String>,
     Json(payload): Json<Value>,
 ) -> Result<Json<DeviceResponse>, Response> {

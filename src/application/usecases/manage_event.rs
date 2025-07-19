@@ -1,20 +1,21 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::{
     application::ports::{
         inbound::event_service::{EventService, EventServiceError},
-        outbound::event_repository::{ EventRepository, EventRepositoryError},
+        outbound::event_repository::{ CreateEventRepository, EventRepositoryError, GetEventRepository},
     },
     domain::event::Event,
 };
 
-pub struct ManageEventService<E: EventRepository> {
-    pub event_repository: E,
+pub struct ManageEventService<C: CreateEventRepository, G: GetEventRepository> {
+    pub create_repo: Arc<C>,
+    pub get_repo: Arc<G>,
 }
 
-impl<E: EventRepository> EventService for ManageEventService<E> {
+impl<C: CreateEventRepository, G: GetEventRepository> EventService for ManageEventService<C, G> {
     async fn handle_event(&self, event: Event) -> Result<(), EventServiceError> {
-        if let Err(e) = self.event_repository.create_event(event.clone()).await {
+        if let Err(e) = self.create_repo.create_event(event.clone()).await {
             return Err(match e {
                 EventRepositoryError::RepositoryError(msg) => EventServiceError::InternalError(msg),
                 EventRepositoryError::ValidationError(msg) => EventServiceError::InvalidInput(msg),
@@ -25,7 +26,7 @@ impl<E: EventRepository> EventService for ManageEventService<E> {
 
     async fn get_events(&self, device_id: &uuid::Uuid) -> Result<Vec<Event>, EventServiceError> {
         let mut result = Vec::new();
-        match self.event_repository.get_events(device_id).await {
+        match self.get_repo.get_events(device_id).await {
             Ok(events) => result.push(events),
             Err(EventRepositoryError::RepositoryError(msg)) => {
                 return Err(EventServiceError::InternalError(msg));

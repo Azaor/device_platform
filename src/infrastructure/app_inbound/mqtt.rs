@@ -2,29 +2,29 @@ use std::time::Duration;
 
 use rumqttc::{mqttbytes, AsyncClient, MqttOptions, Packet};
 
-use crate::{application::ports::app::{App, AppState}, domain::device::{EventFormatError}, infrastructure::mqtt::inbound::event_handler::handle_event};
+use crate::{application::ports::app::{AppInbound, AppOutbound}, domain::device::EventFormatError, infrastructure::mqtt::inbound::{error::HandlerError, event_handler::handle_event}};
 
-pub struct MQTTApp {
+pub struct MQTTAppInbound {
     event_topic: String,
 }
 
-impl MQTTApp {
+impl MQTTAppInbound {
     pub fn new(event_topic: &str) -> Self {
-        MQTTApp {
+        MQTTAppInbound {
             event_topic: event_topic.to_string(),
         }
     }
-    pub async fn router<AS: AppState+'static>(&self, received: &rumqttc::Publish, state: &AS) -> Result<(), HandlerError> {
+    pub async fn router<AO: AppOutbound+'static>(&self, received: &rumqttc::Publish, outbound: &AO) -> Result<(), HandlerError> {
         if mqttbytes::matches(&received.topic, &self.event_topic) {
-            handle_event(received, state).await
+            handle_event(received, outbound).await
         } else {
             Err(HandlerError::ParsingError("Topic does not match with any handler error".to_string()))
         }
     }
 }
 
-impl App for MQTTApp {
-    async fn start_with_state<AS: AppState+'static>(&self, state: AS) -> Result<(), String> {
+impl AppInbound for MQTTAppInbound {
+    async fn start_with_outbound<AO: AppOutbound+'static>(&self, outbound: AO) -> Result<(), String> {
         // Here you would set up the MQTT client and connect to the broker
         // For example, using `rumqttc` or another MQTT client library
         let mut mqttoptions = MqttOptions::new("rumqtt-async", "localhost", 1883);
@@ -38,7 +38,7 @@ impl App for MQTTApp {
         // ...
         while let Ok(notification) = eventloop.poll().await {
             if let rumqttc::Event::Incoming(Packet::Publish(published)) = notification {
-                match self.router(&published, &state).await {
+                match self.router(&published, &outbound).await {
                     Ok(_) => println!("Event handled successfully for device: {}", published.topic),
                     Err(HandlerError::ParsingError(err)) => {
                         eprintln!("Error parsing event: {}", err);
@@ -51,18 +51,5 @@ impl App for MQTTApp {
             
         }
         Ok(())
-    }
-}
-
-pub enum HandlerError {
-    ParsingError(String),
-    InternalError(String),
-}
-
-impl From<EventFormatError> for HandlerError {
-    fn from(err: EventFormatError) -> Self {
-        match err {
-            EventFormatError::UnsupportedFormat(e) => HandlerError::ParsingError(format!("Invalid event format : {}", e)),
-        }
     }
 }

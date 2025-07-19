@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::{application::ports::{app::AppState, inbound::{device_service::DeviceService, device_state_service::{DeviceStateService}, event_service::EventService}}, domain::event::Event, infrastructure::http::axum::error::ErrorResponse};
+use crate::{application::ports::{app::AppOutbound, inbound::{device_service::DeviceService, device_state_service::DeviceStateService, event_service::EventService}}, domain::event::Event, infrastructure::http::axum::error::ErrorResponse};
 
 #[derive(Serialize)]
 pub struct EventResponse {
@@ -16,8 +16,8 @@ pub struct EventResponse {
 }
 
 
-pub async fn create_event_handler<AS: AppState>(
-    State(services): State<Arc<AS>>,
+pub async fn create_event_handler<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
     Path(device_id) : Path<String>,
     r: Request,
 ) -> Result<Json<EventResponse>, Response> {
@@ -64,8 +64,8 @@ pub async fn create_event_handler<AS: AppState>(
 
 }
 
-pub async fn get_event_handler<AS: AppState>(
-    State(services): State<Arc<AS>>,
+pub async fn get_event_handler<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
     Path(device_id): Path<String>,
 ) -> Result<Json<Vec<EventResponse>>, Response> {
     let event_service = services.get_event_service();

@@ -1,14 +1,17 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use uuid::Uuid;
 
-use crate::{application::ports::{inbound::device_state_service::{DeviceStateService, DeviceStateServiceError}, outbound::device_state_repository::{DeviceStateRepository, DeviceStateRepositoryError}}, domain::state::DeviceState};
+use crate::{application::ports::{inbound::device_state_service::{DeviceStateService, DeviceStateServiceError}, outbound::device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, GetDeviceStateRepository, UpdateDeviceStateRepository}}, domain::state::DeviceState};
 
-pub struct ManageDeviceStateService<R: DeviceStateRepository> {
-    pub repo: R
+pub struct ManageDeviceStateService<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDeviceStateRepository, D: DeleteDeviceStateRepository> {
+    pub create_repo: Arc<C>,
+    pub get_repo: Arc<G>,
+    pub update_repo: Arc<U>,
+    pub delete_repo: Arc<D>,
 }
 
-impl<R: DeviceStateRepository> DeviceStateService for ManageDeviceStateService<R> {
+impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDeviceStateRepository, D: DeleteDeviceStateRepository> DeviceStateService for ManageDeviceStateService<C, G, U, D> {
     async fn create_device_state(&self, device_id: Uuid, values: HashMap<String, String>) -> Result<DeviceState, DeviceStateServiceError> {
         let device_state = DeviceState {
             device_id,
@@ -16,7 +19,7 @@ impl<R: DeviceStateRepository> DeviceStateService for ManageDeviceStateService<R
             values,
         };
 
-        match self.repo.save(&device_state).await {
+        match self.create_repo.create(&device_state).await {
             Ok(_) => Ok(device_state),
             Err(DeviceStateRepositoryError::Conflict) => Err(DeviceStateServiceError::AlreadyExists),
             Err(DeviceStateRepositoryError::InternalError) => Err(DeviceStateServiceError::InternalError),
@@ -25,7 +28,7 @@ impl<R: DeviceStateRepository> DeviceStateService for ManageDeviceStateService<R
     }
 
     async fn get_device_state(&self, id: Uuid) -> Result<Option<DeviceState>, DeviceStateServiceError> {
-        match self.repo.find_by_id(id).await {
+        match self.get_repo.get_by_id(id).await {
             Ok(Some(device_state)) => Ok(Some(device_state)),
             Ok(None) => Err(DeviceStateServiceError::DeviceStateNotFound),
             Err(DeviceStateRepositoryError::DeviceNotFound) => Err(DeviceStateServiceError::DeviceNotFound),
@@ -35,7 +38,7 @@ impl<R: DeviceStateRepository> DeviceStateService for ManageDeviceStateService<R
     }
     
     async fn delete_device_state(&self, id: Uuid) -> Result<(), DeviceStateServiceError> {
-        match self.repo.delete_by_id(id).await {
+        match self.delete_repo.delete_by_id(id).await {
             Ok(_) => Ok(()),
             Err(DeviceStateRepositoryError::DeviceNotFound) => Err(DeviceStateServiceError::DeviceNotFound),
             Err(DeviceStateRepositoryError::InternalError) => Err(DeviceStateServiceError::InternalError),
@@ -44,7 +47,7 @@ impl<R: DeviceStateRepository> DeviceStateService for ManageDeviceStateService<R
     }
     
     async fn update_device_state(&self, id: Uuid, values: HashMap<String, String>) -> Result<DeviceState, DeviceStateServiceError> {
-        let mut device_state = match self.repo.find_by_id(id).await {
+        let mut device_state = match self.get_repo.get_by_id(id).await {
             Ok(Some(state)) => state,
             Ok(None) => return Err(DeviceStateServiceError::DeviceNotFound),
             Err(DeviceStateRepositoryError::DeviceNotFound) => return Err(DeviceStateServiceError::DeviceNotFound),
@@ -55,7 +58,7 @@ impl<R: DeviceStateRepository> DeviceStateService for ManageDeviceStateService<R
         device_state.values = values;
         device_state.last_update = chrono::Utc::now();
 
-        match self.repo.save(&device_state).await {
+        match self.update_repo.update(&device_state).await {
             Ok(_) => Ok(device_state),
             Err(DeviceStateRepositoryError::Conflict) => Err(DeviceStateServiceError::AlreadyExists),
             Err(DeviceStateRepositoryError::InternalError) => Err(DeviceStateServiceError::InternalError),
