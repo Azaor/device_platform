@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::event::Event};
+use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::{device::EventFormat, event::Event}};
 
 pub struct PostgresEventRepository {
     pool: sqlx::PgPool,
@@ -30,7 +30,7 @@ impl PostgresEventRepository {
 }
 
 impl CreateEventRepository for PostgresEventRepository {
-    async fn create_event(&self, evt: Event) -> Result<(), EventRepositoryError> {
+    async fn create_event(&self, evt: Event, event_format: &EventFormat) -> Result<(), EventRepositoryError> {
         let query = "INSERT INTO events (id, device_id, timestamp, payload) VALUES ($1, $2, $3, $4)
                      ON CONFLICT (id, device_id) DO NOTHING";
         
@@ -38,7 +38,7 @@ impl CreateEventRepository for PostgresEventRepository {
             .bind(evt.id)
             .bind(evt.device_id)
             .bind(evt.timestamp)
-            .bind(sqlx::types::Json(evt.payload))
+            .bind(event_format.encode_event(evt.payload)?)
             .execute(&self.pool)
             .await
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;

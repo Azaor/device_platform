@@ -47,7 +47,7 @@ pub async fn create_event_handler<AO: AppOutbound>(
         Ok(event) => event,
         Err(err) => return Err(ErrorResponse::from(err).into_response()),
     };
-    let res = match event_service.handle_event(event.clone()).await {
+    let res = match event_service.handle_event(event.clone(), &device.event_format).await {
         Ok(_) => Json(EventResponse {
             id: event.id,
             device_id: event.device_id,

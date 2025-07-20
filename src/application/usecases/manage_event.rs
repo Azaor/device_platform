@@ -5,7 +5,7 @@ use crate::{
         inbound::event_service::{EventService, EventServiceError},
         outbound::event_repository::{ CreateEventRepository, EventRepositoryError, GetEventRepository},
     },
-    domain::event::Event,
+    domain::{device::EventFormat, event::Event},
 };
 
 pub struct ManageEventService<C: CreateEventRepository, G: GetEventRepository> {
@@ -14,8 +14,8 @@ pub struct ManageEventService<C: CreateEventRepository, G: GetEventRepository> {
 }
 
 impl<C: CreateEventRepository, G: GetEventRepository> EventService for ManageEventService<C, G> {
-    async fn handle_event(&self, event: Event) -> Result<(), EventServiceError> {
-        if let Err(e) = self.create_repo.create_event(event.clone()).await {
+    async fn handle_event(&self, event: Event, event_format: &EventFormat) -> Result<(), EventServiceError> {
+        if let Err(e) = self.create_repo.create_event(event.clone(), event_format).await {
             return Err(match e {
                 EventRepositoryError::RepositoryError(msg) => EventServiceError::InternalError(msg),
                 EventRepositoryError::ValidationError(msg) => EventServiceError::InvalidInput(msg),

@@ -1,4 +1,5 @@
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::fmt::Display;
 use std::{collections::HashMap};
@@ -35,6 +36,13 @@ impl EventFormat {
             },
         }
     } 
+    pub fn encode_event(&self, event_payload: HashMap<String, String>) -> Result<String, EventFormatError> {
+        match self {
+            EventFormat::Json => {
+                return serde_json::to_string(&event_payload).map_err(|e| EventFormatError::UnsupportedFormat(e.to_string()));
+            },
+        }
+    }
 }
 
 impl Display for EventFormat {
@@ -92,6 +100,23 @@ impl Display for EventDataType {
             EventDataType::Number => write!(f, "number"),
             EventDataType::Boolean => write!(f, "boolean"),
         }
+    }
+}
+
+impl Serialize for EventDataType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for EventDataType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de> {
+        let s = String::deserialize(deserializer)?;
+        EventDataType::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 

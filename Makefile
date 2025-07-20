@@ -1,9 +1,10 @@
-.PHONY: build release build-minimal build-cli build-web build-cli-web \
-        run-cli run-web clean
+.PHONY: run-axum-i-pg-o run-mqtt-i-pg-o run-axum-i-mqtt-o
 
-run-axum-inbound:
+run-axum-i-pg-o:
 	cargo run --no-default-features --features="axum postgres_outbound"
 
-run-mqtt-inbound:
+run-mqtt-i-pg-o:
 	cargo run --no-default-features --features="mqtt_inbound postgres_outbound"
 
+run-axum-i-mqtt-o:
+	cargo run --no-default-features --features="axum mqtt_outbound"

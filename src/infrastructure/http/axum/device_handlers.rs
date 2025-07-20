@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     application::ports::{app::AppOutbound, inbound::device_service::DeviceService},
-    domain::device::EventFormat,
+    domain::device::{Device, EventFormat},
     infrastructure::http::axum::error::ErrorResponse,
 };
 
@@ -83,8 +83,9 @@ pub async fn create_device_handler<AO: AppOutbound>(
         Ok(req) => req,
         Err(err) => return Err(err.into_response()),
     };
+    let device = Device::new(&Uuid::new_v4(), &payload.user_id, &payload.name.clone(), payload.event_format, HashMap::new());
     match service
-        .create_device(payload.user_id, payload.name.clone(), payload.event_format)
+        .create_device(&device)
         .await
     {
         Ok(device) => {

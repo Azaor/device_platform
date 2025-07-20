@@ -1,5 +1,8 @@
-use chrono::Utc;
+use std::str::FromStr;
+
+use chrono::{DateTime};
 use rumqttc::Publish;
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
@@ -10,25 +13,31 @@ use crate::{
             device_state_service::{DeviceStateService, DeviceStateServiceError},
             event_service::{EventService, EventServiceError},
         },
-    }, domain::event::Event, infrastructure::mqtt::inbound::error::HandlerError
+    }, domain::event::Event, infrastructure::mqtt::{inbound::error::HandlerError, mqtt_messages::{CreateEventPayload, MqttActionType, MqttMessage}}
 };
 
 pub async fn handle_event<AO: AppOutbound + 'static>(
     received: &Publish,
     state: &AO,
 ) -> Result<(), HandlerError> {
-    // Handle incoming messages
-    let device_id = received
-        .topic
-        .split('/')
-        .nth(1)
-        .unwrap_or("unknown")
-        .to_string();
-    // device Id to UUID conversion
-    let device_id = match Uuid::parse_str(&device_id) {
-        Ok(id) => id,
-        Err(_) => return Err(HandlerError::ParsingError("Invalid UUID".to_string())), // Skip if device_id is not valid UUID
-    };
+    let data: MqttMessage<Value> = serde_json::from_slice(&received.payload).map_err(|e| HandlerError::ParsingError(format!("Invalid payload: {}", e.to_string())))?;
+    match data.action_type {
+        MqttActionType::Create => {
+            let payload = serde_json::from_value(data.payload).map_err(|e| HandlerError::ParsingError(format!("Invalid payload: {}", e.to_string())))?;
+            handle_create_event(payload, state).await
+        },
+        MqttActionType::Delete => return Err(HandlerError::ParsingError("Invalid payload, no delete on events".to_string())),
+        MqttActionType::Update => return Err(HandlerError::ParsingError("Invalid payload, no update on events".to_string())),
+    }
+    
+}
+
+async fn handle_create_event<AO: AppOutbound + 'static>(
+    event: CreateEventPayload,
+    state: &AO,
+) -> Result<(), HandlerError> {
+    let device_id = Uuid::from_str(&event.device_id).map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
+    let timestamp = DateTime::from_str(&event.timestamp).map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
     let device_service = state.get_device_service();
     let event_service = state.get_event_service();
     let device_state_service = state.get_device_state_service();
@@ -45,8 +54,8 @@ pub async fn handle_event<AO: AppOutbound + 'static>(
         }
     };
 
-    let event = Event::new(&device, &Utc::now(), &received.payload)?;
-    match event_service.handle_event(event.clone()).await {
+    let event = Event::new(&device, &timestamp, &event.event_data.as_bytes())?;
+    match event_service.handle_event(event.clone(), &device.event_format).await {
         Ok(_) => (),
         Err(EventServiceError::InternalError(err)) => {
             return Err(HandlerError::InternalError(format!(

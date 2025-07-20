@@ -1,9 +1,13 @@
-use rumqttc::{AsyncClient, ClientError};
+use rumqttc::AsyncClient;
 use uuid::Uuid;
 
 use crate::{
-    application::ports::outbound::{device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, UpdateDeviceStateRepository}},
+    application::ports::outbound::device_state_repository::{
+        CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError,
+        UpdateDeviceStateRepository,
+    },
     domain::state::DeviceState,
+    infrastructure::mqtt::mqtt_messages::{self, MqttActionType},
 };
 
 pub struct MqttDeviceStateRepository {
@@ -12,31 +16,32 @@ pub struct MqttDeviceStateRepository {
 }
 
 impl MqttDeviceStateRepository {
-    pub async fn new(
-        mqtt_client: AsyncClient,
-        device_state_topic: &str,
-        device_state_topic_response: &str,
-    ) -> Result<Self, ClientError> {
-        mqtt_client
-            .subscribe(device_state_topic_response, rumqttc::QoS::AtLeastOnce)
-            .await?;
-        return Ok(MqttDeviceStateRepository {
+    pub fn new(mqtt_client: AsyncClient, device_state_topic: &str) -> Self {
+        return MqttDeviceStateRepository {
             mqtt_client,
             device_state_topic: device_state_topic.to_string(),
-        });
+        };
     }
 }
 
 impl CreateDeviceStateRepository for MqttDeviceStateRepository {
     async fn create(&self, device_state: &DeviceState) -> Result<(), DeviceStateRepositoryError> {
-        let payload = serde_json::to_string(device_state)
-            .map_err(|_| DeviceStateRepositoryError::InternalError)?;
+        let payload = mqtt_messages::CreateDeviceStatePayload {
+            device_id: device_state.device_id.to_string(),
+            last_update: device_state.last_update.to_rfc3339(),
+            values: device_state.values.clone(),
+        };
+
+        let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Create){
+            Ok(r) => r,
+            Err(_) => return Err(DeviceStateRepositoryError::InternalError),
+        };
         self.mqtt_client
             .publish(
                 &self.device_state_topic,
                 rumqttc::QoS::AtLeastOnce,
                 false,
-                payload,
+                message,
             )
             .await
             .map_err(|_| DeviceStateRepositoryError::InternalError)?;
@@ -46,13 +51,19 @@ impl CreateDeviceStateRepository for MqttDeviceStateRepository {
 
 impl DeleteDeviceStateRepository for MqttDeviceStateRepository {
     async fn delete_by_id(&self, id: Uuid) -> Result<(), DeviceStateRepositoryError> {
-        let payload = serde_json::json!({ "device_id": id }).to_string();
+        let payload = mqtt_messages::DeleteDeviceStatePayload {
+            device_id: id.to_string(),
+        };
+        let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Delete){
+            Ok(r) => r,
+            Err(_) => return Err(DeviceStateRepositoryError::InternalError),
+        };
         self.mqtt_client
             .publish(
                 &self.device_state_topic,
                 rumqttc::QoS::AtLeastOnce,
                 false,
-                payload,
+                message,
             )
             .await
             .map_err(|_| DeviceStateRepositoryError::InternalError)?;
@@ -62,18 +73,26 @@ impl DeleteDeviceStateRepository for MqttDeviceStateRepository {
 
 impl UpdateDeviceStateRepository for MqttDeviceStateRepository {
     async fn update(&self, device_state: &DeviceState) -> Result<(), DeviceStateRepositoryError> {
-        let payload = serde_json::to_string(device_state)
-            .map_err(|_| DeviceStateRepositoryError::InternalError)?;
+        let payload = mqtt_messages::UpdateDeviceStatePayload {
+            device_id: device_state.device_id.to_string(),
+            last_update: device_state.last_update.to_rfc3339(),
+            values: device_state.values.clone(),
+        };
+
+        let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Update){
+            Ok(r) => r,
+            Err(_) => return Err(DeviceStateRepositoryError::InternalError),
+        };
+        
         self.mqtt_client
             .publish(
                 &self.device_state_topic,
                 rumqttc::QoS::AtLeastOnce,
                 false,
-                payload,
+                message,
             )
             .await
             .map_err(|_| DeviceStateRepositoryError::InternalError)?;
         Ok(())
     }
 }
-

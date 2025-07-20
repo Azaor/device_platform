@@ -15,7 +15,7 @@ pub fn get_app_inbound() -> impl AppInbound {
     let app = AxumAppInbound::new();
 
     #[cfg(feature = "mqtt_inbound")]
-    let app = MQTTAppInbound::new("device/+/state");
+    let app = MQTTAppInbound::new();
 
     return app
 }
