@@ -19,8 +19,8 @@ impl CreateDeviceRepository for MqttDeviceRepository {
     async fn create(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
         let event_data = match serde_json::to_string(&device.event_data) {
             Ok(r) => r,
-            Err(_) => {
-                return Err(DeviceRepositoryError::InternalError)
+            Err(e) => {
+                return Err(DeviceRepositoryError::InternalError(e.to_string()))
             }
         };
         let mqtt_payload = mqtt_messages::CreateDevicePayload {
@@ -33,8 +33,8 @@ impl CreateDeviceRepository for MqttDeviceRepository {
 
         let message = match mqtt_messages::payload_to_mqtt_message(mqtt_payload, MqttActionType::Create) {
             Ok(r) => r,
-            Err(_) => {
-                return Err(DeviceRepositoryError::InternalError);
+            Err(e) => {
+                return Err(DeviceRepositoryError::InternalError(e.to_string()));
             },
         };
         self.mqtt_client
@@ -47,8 +47,7 @@ impl CreateDeviceRepository for MqttDeviceRepository {
             .await
             .map_err(|e| {
                 println!("An error occured: {}", e);
-                DeviceRepositoryError::InternalError
-
+                DeviceRepositoryError::InternalError(e.to_string())
             })?;
 
         return Ok(())
@@ -59,8 +58,8 @@ impl UpdateDeviceRepository for MqttDeviceRepository {
     async fn update(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
         let event_data = match serde_json::to_string(&device.event_data) {
             Ok(r) => r,
-            Err(_) => {
-                return Err(DeviceRepositoryError::InternalError)
+            Err(e) => {
+                return Err(DeviceRepositoryError::InternalError(e.to_string()))
             }
         };
         let payload = mqtt_messages::UpdateDevicePayload {
@@ -73,8 +72,8 @@ impl UpdateDeviceRepository for MqttDeviceRepository {
 
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Update) {
             Ok(r) => r,
-            Err(_) => {
-                return Err(DeviceRepositoryError::InternalError);
+            Err(e) => {
+                return Err(DeviceRepositoryError::InternalError(e.to_string()));
             },
         };
         self.mqtt_client
@@ -85,7 +84,7 @@ impl UpdateDeviceRepository for MqttDeviceRepository {
                 message,
             )
             .await
-            .map_err(|_| DeviceRepositoryError::InternalError)?;
+            .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
 
         return Ok(())
     }
@@ -98,8 +97,8 @@ impl DeleteDeviceRepository for MqttDeviceRepository {
         };
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Delete) {
             Ok(r) => r,
-            Err(_) => {
-                return Err(DeviceRepositoryError::InternalError);
+            Err(e) => {
+                return Err(DeviceRepositoryError::InternalError(e.to_string()));
             },
         };
          self.mqtt_client
@@ -110,7 +109,7 @@ impl DeleteDeviceRepository for MqttDeviceRepository {
                 message,
             )
             .await
-            .map_err(|_| DeviceRepositoryError::InternalError)?;
+            .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
 
         return Ok(())
     }

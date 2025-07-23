@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use axum::{
     Json,
@@ -26,6 +26,7 @@ pub struct DeviceResponse {
     pub id: Uuid,
     pub user_id: Uuid,
     pub name: String,
+    pub event_format: String,
     pub event_data: HashMap<String, String>,
 }
 
@@ -83,11 +84,14 @@ pub async fn create_device_handler<AO: AppOutbound>(
         Ok(req) => req,
         Err(err) => return Err(err.into_response()),
     };
-    let device = Device::new(&Uuid::new_v4(), &payload.user_id, &payload.name.clone(), payload.event_format, HashMap::new());
-    match service
-        .create_device(&device)
-        .await
-    {
+    let device = Device::new(
+        &Uuid::new_v4(),
+        &payload.user_id,
+        &payload.name.clone(),
+        payload.event_format,
+        HashMap::new(),
+    );
+    match service.create_device(&device).await {
         Ok(device) => {
             let event_data: HashMap<String, String> = device
                 .event_data
@@ -98,9 +102,10 @@ pub async fn create_device_handler<AO: AppOutbound>(
                 id: device.id,
                 user_id: device.user_id,
                 name: device.name,
+                event_format: device.event_format.to_string(),
                 event_data: event_data,
             }))
-        },
+        }
         Err(err) => Err(ErrorResponse::from(err).into_response()),
     }
 }
@@ -132,14 +137,44 @@ pub async fn get_device_handler<AO: AppOutbound>(
                 id: device.id,
                 user_id: device.user_id,
                 name: device.name,
+                event_format: device.event_format.to_string(),
                 event_data: event_data,
             }))
-        },
+        }
         Ok(None) => Err(ErrorResponse {
             status: 404,
             message: "Device not found".to_string(),
         }
         .into_response()),
+        Err(err) => Err(ErrorResponse::from(err).into_response()),
+    }
+}
+
+pub async fn get_devices_handler<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
+) -> Result<Json<Vec<DeviceResponse>>, Response> {
+    let service = services.get_device_service();
+    let uuid = Uuid::from_str("4a78a953-99bc-4a08-932e-956ef3f7d8fc").unwrap();
+    match service.get_devices_by_user_id(uuid).await {
+        Ok(devices) => {
+            let mut device_responses = Vec::new();
+            for device in devices {
+                let event_data: HashMap<String, String> = device
+                    .event_data
+                    .into_iter()
+                    .map(|(k, v)| (k, v.to_string()))
+                    .collect();
+                device_responses.push(DeviceResponse {
+                    id: device.id,
+                    user_id: device.user_id,
+                    name: device.name,
+                    event_format: device.event_format.to_string(),
+                    event_data: event_data,
+                })
+            }
+
+            Ok(Json(device_responses))
+        }
         Err(err) => Err(ErrorResponse::from(err).into_response()),
     }
 }
@@ -208,6 +243,7 @@ pub async fn update_device_handler<AO: AppOutbound>(
                 id: device.id,
                 user_id: device.user_id,
                 name: device.name,
+                event_format: device.event_format.to_string(),
                 event_data: event_data,
             }))
         }

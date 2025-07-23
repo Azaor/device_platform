@@ -34,7 +34,7 @@ impl CreateDeviceStateRepository for MqttDeviceStateRepository {
 
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Create){
             Ok(r) => r,
-            Err(_) => return Err(DeviceStateRepositoryError::InternalError),
+            Err(e) => return Err(DeviceStateRepositoryError::InternalError(e.to_string())),
         };
         self.mqtt_client
             .publish(
@@ -44,7 +44,7 @@ impl CreateDeviceStateRepository for MqttDeviceStateRepository {
                 message,
             )
             .await
-            .map_err(|_| DeviceStateRepositoryError::InternalError)?;
+            .map_err(|e| DeviceStateRepositoryError::InternalError(e.to_string()))?;
         Ok(())
     }
 }
@@ -56,7 +56,7 @@ impl DeleteDeviceStateRepository for MqttDeviceStateRepository {
         };
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Delete){
             Ok(r) => r,
-            Err(_) => return Err(DeviceStateRepositoryError::InternalError),
+            Err(e) => return Err(DeviceStateRepositoryError::InternalError(e.to_string())),
         };
         self.mqtt_client
             .publish(
@@ -66,7 +66,7 @@ impl DeleteDeviceStateRepository for MqttDeviceStateRepository {
                 message,
             )
             .await
-            .map_err(|_| DeviceStateRepositoryError::InternalError)?;
+            .map_err(|e| DeviceStateRepositoryError::InternalError(e.to_string()))?;
         Ok(())
     }
 }
@@ -81,9 +81,9 @@ impl UpdateDeviceStateRepository for MqttDeviceStateRepository {
 
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Update){
             Ok(r) => r,
-            Err(_) => return Err(DeviceStateRepositoryError::InternalError),
+            Err(e) => return Err(DeviceStateRepositoryError::InternalError(e.to_string())),
         };
-        
+
         self.mqtt_client
             .publish(
                 &self.device_state_topic,
@@ -92,7 +92,7 @@ impl UpdateDeviceStateRepository for MqttDeviceStateRepository {
                 message,
             )
             .await
-            .map_err(|_| DeviceStateRepositoryError::InternalError)?;
+            .map_err(|e| DeviceStateRepositoryError::InternalError(e.to_string()))?;
         Ok(())
     }
 }

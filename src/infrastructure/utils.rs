@@ -73,3 +73,48 @@ pub async fn create_mqtt_client(config: &MQTTConfig) -> (AsyncClient, EventLoop)
     let mqttoptions = MqttOptions::new("rumqtt-async", config.mqtt_url.clone(), config.mqtt_port);
     return AsyncClient::new(mqttoptions, 10)
 }
+
+#[cfg(feature = "reqwest")]
+pub struct HttpConfig {
+    pub base_url: String,
+    pub device_create_path: Option<String>,
+    pub device_update_path: Option<String>,
+    pub device_get_path: Option<String>,
+    pub device_delete_path: Option<String>,
+    pub device_state_create_path: Option<String>,
+    pub device_state_update_path: Option<String>,
+    pub device_state_get_path: Option<String>,
+    pub device_state_delete_path: Option<String>,
+    pub event_create_path: Option<String>,
+    pub event_get_path: Option<String>,
+}
+
+#[cfg(feature = "reqwest")]
+pub fn load_http_config_from_env() -> Result<HttpConfig, VarError> {
+    // Load database connection options from environment variables or configuration files
+    let base_url = std::env::var("HTTP_BASE_URL")?;
+    let device_create_path = std::env::var("HTTP_DEVICE_CREATE_PATH").ok();
+    let device_update_path = std::env::var("HTTP_DEVICE_UPDATE_PATH").ok();
+    let device_get_path = std::env::var("HTTP_DEVICE_GET_PATH").ok();
+    let device_delete_path = std::env::var("HTTP_DEVICE_DELETE_PATH").ok();
+    let device_state_create_path = std::env::var("HTTP_DEVICE_STATE_CREATE_PATH").ok();
+    let device_state_update_path = std::env::var("HTTP_DEVICE_STATE_UPDATE_PATH").ok();
+    let device_state_get_path = std::env::var("HTTP_DEVICE_STATE_GET_PATH").ok();
+    let device_state_delete_path = std::env::var("HTTP_DEVICE_STATE_DELETE_PATH").ok();
+    let event_create_path = std::env::var("HTTP_EVENT_CREATE_PATH").ok();
+    let event_get_path = std::env::var("HTTP_EVENT_GET_PATH").ok();
+
+    Ok(HttpConfig {
+        base_url,
+        device_create_path,
+        device_update_path,
+        device_get_path,
+        device_delete_path,
+        device_state_create_path,
+        device_state_update_path,
+        device_state_get_path,
+        device_state_delete_path,
+        event_create_path,
+        event_get_path,
+    })
+}

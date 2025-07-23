@@ -18,7 +18,7 @@ use crate::application::{
     },
 };
 
-pub trait AppOutbound: Send + Sync {
+pub trait AppOutbound: Send + Sync + Clone {
     fn get_device_service(
         &self,
     ) -> &Arc<

@@ -39,7 +39,7 @@ impl CreateDeviceStateRepository for PostgresDeviceStateRepository {
             .await
             .map_err(|e: sqlx::Error| {
                 println!("Error saving device state: {:?}", e);
-                DeviceStateRepositoryError::InternalError
+                DeviceStateRepositoryError::InternalError(e.to_string())
             })?;
         Ok(())
     }
@@ -54,7 +54,7 @@ impl GetDeviceStateRepository for PostgresDeviceStateRepository {
             .await
             .map_err(|e: sqlx::Error| {
                 println!("Error fetching device state by ID {}: {:?}", id, e);
-                DeviceStateRepositoryError::InternalError
+                DeviceStateRepositoryError::InternalError(e.to_string())
             })?;
         
         match row {
@@ -82,7 +82,7 @@ impl DeleteDeviceStateRepository for PostgresDeviceStateRepository {
             .await
             .map_err(|e: sqlx::Error| {
                 println!("Error deleting device state by ID {}: {:?}", id, e);
-                DeviceStateRepositoryError::InternalError
+                DeviceStateRepositoryError::InternalError(e.to_string())
             })?;
         Ok(())
     }

@@ -6,12 +6,15 @@ edition = "2024"
 # Build with mqtt and postgres features enabled
 
 [features]
-default = ["mqtt_inbound", "postgres_outbound"]
+default = ["axum_inbound", "mqtt_client_outbound"]
 
 axum_inbound = ["axum"]
 mqtt_inbound = ["mqtt"]
+egui_inbound = ["egui"]
 
-mqtt_outbound = ["mqtt", "postgres"]
+mqtt_server_outbound = ["mqtt_outbound", "postgres"]
+mqtt_client_outbound = ["mqtt_outbound", "reqwest"]
+mqtt_outbound = ["mqtt"]
 postgres_outbound = ["postgres"]
 in_memory_outbound = ["in_memory"]
 
@@ -20,12 +23,15 @@ mqtt = ["dep:rumqttc"]
 in_memory = []
 reqwest = ["dep:reqwest"]
 postgres = ["dep:sqlx"]
+egui = ["dep:egui", "dep:eframe"]
 
 [dependencies]
 axum = {version = "0.8.4", optional = true}
 chrono = {version="0.4.41", features = ["serde"] }
 dotenv = "0.15.0"
-reqwest = {version="0.12.20", optional = true}
+eframe = {version="0.32.0", optional = true}
+egui = {version="0.32.0", optional = true}
+reqwest = {version="0.12.20", features = ["json"], optional = true}
 rumqttc = {version="0.24.0", optional = true}
 serde = {version="1.0.219", features = ["derive", "serde_derive"]}
 serde_json = "1.0.140"

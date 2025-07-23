@@ -39,6 +39,16 @@ pub struct FullPostgresAppOutbound {
         Arc<ManageEventService<PostgresEventRepository, PostgresEventRepository>>,
 }
 
+impl Clone for FullPostgresAppOutbound {
+    fn clone(&self) -> Self {
+        FullPostgresAppOutbound {
+            device_service: Arc::clone(&self.device_service),
+            device_state_service: Arc::clone(&self.device_state_service),
+            device_events_service: Arc::clone(&self.device_events_service),
+        }
+    }
+}
+
 impl FullPostgresAppOutbound {
     pub async fn new() -> Result<Self, VarError> {
         // Load env files or environment variables

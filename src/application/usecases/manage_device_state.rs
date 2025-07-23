@@ -22,7 +22,7 @@ impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDevic
         match self.create_repo.create(&device_state).await {
             Ok(_) => Ok(device_state),
             Err(DeviceStateRepositoryError::Conflict) => Err(DeviceStateServiceError::AlreadyExists),
-            Err(DeviceStateRepositoryError::InternalError) => Err(DeviceStateServiceError::InternalError),
+            Err(DeviceStateRepositoryError::InternalError(_)) => Err(DeviceStateServiceError::InternalError),
             Err(DeviceStateRepositoryError::DeviceNotFound) => Err(DeviceStateServiceError::DeviceNotFound),
         }
     }
@@ -32,7 +32,7 @@ impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDevic
             Ok(Some(device_state)) => Ok(Some(device_state)),
             Ok(None) => Err(DeviceStateServiceError::DeviceStateNotFound),
             Err(DeviceStateRepositoryError::DeviceNotFound) => Err(DeviceStateServiceError::DeviceNotFound),
-            Err(DeviceStateRepositoryError::InternalError) => Err(DeviceStateServiceError::InternalError),
+            Err(DeviceStateRepositoryError::InternalError(_)) => Err(DeviceStateServiceError::InternalError),
             Err(DeviceStateRepositoryError::Conflict) => Err(DeviceStateServiceError::AlreadyExists),
         }
     }
@@ -41,7 +41,7 @@ impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDevic
         match self.delete_repo.delete_by_id(id).await {
             Ok(_) => Ok(()),
             Err(DeviceStateRepositoryError::DeviceNotFound) => Err(DeviceStateServiceError::DeviceNotFound),
-            Err(DeviceStateRepositoryError::InternalError) => Err(DeviceStateServiceError::InternalError),
+            Err(DeviceStateRepositoryError::InternalError(_)) => Err(DeviceStateServiceError::InternalError),
             Err(DeviceStateRepositoryError::Conflict) => Err(DeviceStateServiceError::AlreadyExists),
         }
     }
@@ -51,7 +51,7 @@ impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDevic
             Ok(Some(state)) => state,
             Ok(None) => return Err(DeviceStateServiceError::DeviceNotFound),
             Err(DeviceStateRepositoryError::DeviceNotFound) => return Err(DeviceStateServiceError::DeviceNotFound),
-            Err(DeviceStateRepositoryError::InternalError) => return Err(DeviceStateServiceError::InternalError),
+            Err(DeviceStateRepositoryError::InternalError(_)) => return Err(DeviceStateServiceError::InternalError),
             Err(DeviceStateRepositoryError::Conflict) => return Err(DeviceStateServiceError::AlreadyExists),
         };
 
@@ -61,7 +61,7 @@ impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDevic
         match self.update_repo.update(&device_state).await {
             Ok(_) => Ok(device_state),
             Err(DeviceStateRepositoryError::Conflict) => Err(DeviceStateServiceError::AlreadyExists),
-            Err(DeviceStateRepositoryError::InternalError) => Err(DeviceStateServiceError::InternalError),
+            Err(DeviceStateRepositoryError::InternalError(_)) => Err(DeviceStateServiceError::InternalError),
             Err(DeviceStateRepositoryError::DeviceNotFound) => Err(DeviceStateServiceError::DeviceNotFound),
         }
     }

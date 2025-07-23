@@ -30,6 +30,15 @@ impl GetDeviceRepository for InMemoryDeviceRepository {
             None => Err(DeviceRepositoryError::NotFound),
         }
     }
+    
+    async fn get_by_user_id(&self, user_id: Uuid) -> Result<Vec<Device>, DeviceRepositoryError> {
+        let map = self.store.lock().unwrap();
+        let devices: Vec<Device> = map.values()
+            .filter(|device| device.user_id == user_id)
+            .cloned()
+            .collect();
+        Ok(devices)
+    }
 }
 
 impl UpdateDeviceRepository for InMemoryDeviceRepository {

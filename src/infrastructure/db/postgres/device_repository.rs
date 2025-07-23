@@ -1,10 +1,16 @@
-
 use std::collections::HashMap;
 
-use sqlx::{postgres::PgQueryResult, PgPool, Row};
+use sqlx::{PgPool, Row, postgres::PgQueryResult};
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::device_repository::{CreateDeviceRepository, DeleteDeviceRepository, DeviceRepositoryError, GetDeviceRepository, UpdateDeviceRepository}, domain::device::{Device, EventDataType, EventFormat}, infrastructure::db::postgres::utils::serialize_event_data};
+use crate::{
+    application::ports::outbound::device_repository::{
+        CreateDeviceRepository, DeleteDeviceRepository, DeviceRepositoryError, GetDeviceRepository,
+        UpdateDeviceRepository,
+    },
+    domain::device::{Device, EventDataType, EventFormat},
+    infrastructure::db::postgres::utils::serialize_event_data,
+};
 
 pub struct PostgresDeviceRepository {
     pool: PgPool,
@@ -16,7 +22,8 @@ impl PostgresDeviceRepository {
     }
     pub async fn init(&self) {
         // Ensure the devices table exists
-        sqlx::query("
+        sqlx::query(
+            "
             CREATE TABLE IF NOT EXISTS devices (
                 id UUID PRIMARY KEY,
                 user_id UUID NOT NULL,
@@ -25,7 +32,8 @@ impl PostgresDeviceRepository {
                 event_data JSONB NOT NULL DEFAULT '{}',
                 UNIQUE (id, user_id)
             )
-        ")
+        ",
+        )
         .execute(&self.pool)
         .await
         .expect("Failed to create devices table");
@@ -40,18 +48,20 @@ impl CreateDeviceRepository for PostgresDeviceRepository {
             .bind(sqlx::types::Uuid::from(device.user_id))
             .bind(&device.name)
             .bind(&device.event_format.to_string())
-            .bind(sqlx::types::Json::from(serialize_event_data(&device.event_data)))
+            .bind(sqlx::types::Json::from(serialize_event_data(
+                &device.event_data,
+            )))
             .execute(&self.pool)
             .await
             .map_err(|e| {
                 println!("Error saving device {}: {:?}", device.id, e);
-                DeviceRepositoryError::InternalError
+                DeviceRepositoryError::InternalError(e.to_string())
             })?;
-        
+
         if result.rows_affected() == 0 {
             return Err(crate::application::ports::outbound::device_repository::DeviceRepositoryError::Conflict);
         }
-        
+
         Ok(())
     }
 }
@@ -66,7 +76,7 @@ impl GetDeviceRepository for PostgresDeviceRepository {
             .await
             .map_err(|e| {
                 println!("Error fetching device by ID {} : {:?}", id, e);
-                DeviceRepositoryError::InternalError
+                DeviceRepositoryError::InternalError(e.to_string())
             })?;
         let row = match row {
             Some(row) => row,
@@ -82,7 +92,7 @@ impl GetDeviceRepository for PostgresDeviceRepository {
         let mut event_data = HashMap::new();
         for (key, value) in event_data_raw.0 {
             let event_data_type = EventDataType::from_str(&value)
-                .map_err(|_| DeviceRepositoryError::InternalError)?;
+                .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
             event_data.insert(key, event_data_type);
         }
         // Creating the Device instance
@@ -90,10 +100,50 @@ impl GetDeviceRepository for PostgresDeviceRepository {
             id,
             user_id,
             name,
-            event_format: EventFormat::try_from(event_format.as_str()).map_err(|_| DeviceRepositoryError::InternalError)?,
+            event_format: EventFormat::try_from(event_format.as_str())
+                .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?,
             event_data: event_data,
         };
         Ok(Some(device))
+    }
+
+    async fn get_by_user_id(&self, user_id: Uuid) -> Result<Vec<Device>, DeviceRepositoryError> {
+        let query =
+            "SELECT id, user_id, name, event_format, event_data FROM devices WHERE user_id = $1";
+        let rows = sqlx::query(query)
+            .bind(sqlx::types::Uuid::from(user_id))
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| {
+                println!("Error fetching devices by user ID {}: {:?}", user_id, e);
+                DeviceRepositoryError::InternalError(e.to_string())
+            })?;
+
+        let mut devices = Vec::new();
+        for row in rows {
+            let id: Uuid = row.get("id");
+            let user_id: Uuid = row.get("user_id");
+            let name: String = row.get("name");
+            let event_format: String = row.get("event_format");
+            let event_data_raw: sqlx::types::Json<HashMap<String, String>> = row.get("event_data");
+
+            let mut event_data = HashMap::new();
+            for (key, value) in event_data_raw.0 {
+                let event_data_type = EventDataType::from_str(&value)
+                    .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
+                event_data.insert(key, event_data_type);
+            }
+
+            devices.push(Device {
+                id,
+                user_id,
+                name,
+                event_format: EventFormat::try_from(event_format.as_str())
+                    .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?,
+                event_data,
+            });
+        }
+        Ok(devices)
     }
 }
 
@@ -104,18 +154,21 @@ impl DeleteDeviceRepository for PostgresDeviceRepository {
             .bind(sqlx::types::Uuid::from(id))
             .execute(&self.pool)
             .await
-            .map_err(|_| crate::application::ports::outbound::device_repository::DeviceRepositoryError::InternalError)?;
-        
+            .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
+
         if result.rows_affected() == 0 {
-            return Err(crate::application::ports::outbound::device_repository::DeviceRepositoryError::NotFound);
+            return Err(DeviceRepositoryError::NotFound);
         }
-        
+
         Ok(())
     }
 }
 
 impl UpdateDeviceRepository for PostgresDeviceRepository {
-    fn update(&self, device: &Device) -> impl Future<Output = Result<(), DeviceRepositoryError>> + Send {
+    fn update(
+        &self,
+        device: &Device,
+    ) -> impl Future<Output = Result<(), DeviceRepositoryError>> + Send {
         self.create(device)
     }
 }

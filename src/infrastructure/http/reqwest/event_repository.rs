@@ -1,49 +1,100 @@
-use uuid::Uuid;
-
-use crate::{application::ports::outbound::event_repository::{EventRepository, EventRepositoryError}, domain::event::Event};
+use crate::{
+    application::ports::outbound::event_repository::{
+        CreateEventRepository, EventRepositoryError, GetEventRepository,
+    },
+    domain::{
+        device::{EventFormat, EventFormatError},
+        event::Event,
+    }, infrastructure::http::reqwest::types::{EventToReceive, EventToSend},
+};
 
 pub struct ReqwestEventRepository {
     base_url: String,
+    create_path: String,
+    get_path: String,
 }
 
 impl ReqwestEventRepository {
-    pub fn new(base_url: String) -> Self {
-        Self { base_url }
+    pub fn new(base_url: &str, create_path: &str, get_path: &str) -> Self {
+        Self { base_url: base_url.to_string(), create_path: create_path.to_string(), get_path: get_path.to_string() }
     }
 }
 
-impl EventRepository for ReqwestEventRepository {
-    fn create_event(&self, event: Event) -> Result<(), EventRepositoryError> {
-        // Send a POST request to the base URL with the event data
-        let client = reqwest::blocking::Client::new();
-        let response = client.post(&self.base_url)
-            .json(&event)
+impl CreateEventRepository for ReqwestEventRepository {
+    async fn create_event(
+        &self,
+        event: Event,
+        event_format: &EventFormat,
+    ) -> Result<(), EventRepositoryError> {
+        let url = format!("{}{}", self.base_url, self.create_path);
+
+        let event_id = event.id.to_string();
+        let device_id = event.device_id.to_string();
+        let timestamp = event.timestamp.to_rfc3339();
+        let data = event_format
+            .encode_event(event.payload)
+            .map_err(|err| match err {
+                EventFormatError::UnsupportedFormat(e) => {
+                    EventRepositoryError::ValidationError(format!("invalid format, {}", e))
+                }
+            })?;
+
+        let event_to_send = EventToSend {
+            id: event_id,
+            device_id,
+            timestamp,
+            payload: data,
+        };
+
+        let client = reqwest::Client::new();
+
+        let res = client
+            .post(&url)
+            .json(&event_to_send)
+            .header("Content-Type", "application/json")
             .send()
+            .await
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
-        if response.status().is_success() {
+
+        if res.status().is_success() {
             Ok(())
         } else {
-            Err(EventRepositoryError::RepositoryError(format!(
-                "Failed to create event: {}",
-                response.status()
-            )))
+            Err(EventRepositoryError::RepositoryError(
+                res.status().to_string(),
+            ))
         }
     }
+}
 
-    fn get_events(&self, device_id: &Uuid) -> Result<Vec<Event>, EventRepositoryError> {
-        // Implementation for retrieving events using reqwest
-        let client = reqwest::blocking::Client::new();
-        let url = format!("{}/events/{}", self.base_url, device_id);
-        let response = client.get(&url)
+impl GetEventRepository for ReqwestEventRepository {
+    async fn get_events(&self, device_id: &uuid::Uuid) -> Result<Vec<Event>, EventRepositoryError> {
+        let url = format!("{}{}/{}", self.base_url, self.get_path, device_id);
+
+        let client = reqwest::Client::new();
+
+        let res = client
+            .get(&url)
+            .header("Content-Type", "application/json")
             .send()
+            .await
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
-        if response.status().is_success() {
-            let events: Vec<Event> = response.json().map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
-            return Ok(events);
+
+        if res.status().is_success() {
+            let events_to_receive = res
+                .json::<Vec<EventToReceive>>()
+                .await
+                .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
+        
+            // Map EventToReceive to Event
+            let mut events = Vec::new();
+            for event_to_receive in events_to_receive {
+                events.push(event_to_receive.try_into()?);
+            }
+            Ok(events)
+        } else {
+            Err(EventRepositoryError::RepositoryError(
+                res.status().to_string(),
+            ))
         }
-        Err(EventRepositoryError::RepositoryError(format!(
-            "Failed to retrieve events: {}",
-            response.status()
-        )))
     }
 }

@@ -37,7 +37,7 @@ impl<
             Ok(_) => Ok(device.clone()),
             Err(DeviceRepositoryError::Conflict) => Err(DeviceServiceError::AlreadyExists),
             Err(DeviceRepositoryError::NotFound) => Err(DeviceServiceError::InternalError),
-            Err(DeviceRepositoryError::InternalError) => Err(DeviceServiceError::InternalError),
+            Err(DeviceRepositoryError::InternalError(_)) => Err(DeviceServiceError::InternalError),
         }
     }
 
@@ -46,7 +46,16 @@ impl<
             Ok(Some(device)) => Ok(Some(device)),
             Ok(None) => Err(DeviceServiceError::NotFound),
             Err(DeviceRepositoryError::NotFound) => Err(DeviceServiceError::NotFound),
-            Err(DeviceRepositoryError::InternalError) => Err(DeviceServiceError::InternalError),
+            Err(DeviceRepositoryError::InternalError(_)) => Err(DeviceServiceError::InternalError),
+            Err(_) => Err(DeviceServiceError::InternalError), // Catch-all for any other errors
+        }
+    }
+
+    async fn get_devices_by_user_id(&self, user_id: Uuid) -> Result<Vec<Device>, DeviceServiceError> {
+        match self.get_repo.get_by_user_id(user_id).await {
+            Ok(devices) => Ok(devices),
+            Err(DeviceRepositoryError::NotFound) => Err(DeviceServiceError::NotFound),
+            Err(DeviceRepositoryError::InternalError(_)) => Err(DeviceServiceError::InternalError),
             Err(_) => Err(DeviceServiceError::InternalError), // Catch-all for any other errors
         }
     }
@@ -55,7 +64,7 @@ impl<
         match self.delete_repo.delete_by_id(id).await {
             Ok(_) => Ok(()),
             Err(DeviceRepositoryError::NotFound) => Err(DeviceServiceError::NotFound),
-            Err(DeviceRepositoryError::InternalError) => Err(DeviceServiceError::InternalError),
+            Err(DeviceRepositoryError::InternalError(_)) => Err(DeviceServiceError::InternalError),
             Err(_) => Err(DeviceServiceError::InternalError), // Catch-all for any other errors
         }
     }
@@ -69,7 +78,7 @@ impl<
             Ok(Some(device)) => device,
             Ok(None) => return Err(DeviceServiceError::NotFound),
             Err(DeviceRepositoryError::NotFound) => return Err(DeviceServiceError::NotFound),
-            Err(DeviceRepositoryError::InternalError) => {
+            Err(DeviceRepositoryError::InternalError(_)) => {
                 return Err(DeviceServiceError::InternalError);
             }
             Err(_) => return Err(DeviceServiceError::InternalError), // Catch-all for any other errors
@@ -92,7 +101,7 @@ impl<
             Ok(_) => Ok(device),
             Err(DeviceRepositoryError::Conflict) => Err(DeviceServiceError::AlreadyExists),
             Err(DeviceRepositoryError::NotFound) => Err(DeviceServiceError::InternalError),
-            Err(DeviceRepositoryError::InternalError) => Err(DeviceServiceError::InternalError),
+            Err(DeviceRepositoryError::InternalError(_)) => Err(DeviceServiceError::InternalError),
         }
     }
 }

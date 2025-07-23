@@ -5,7 +5,7 @@ use crate::domain::state::DeviceState;
 pub enum DeviceStateRepositoryError {
     DeviceNotFound,
     Conflict,
-    InternalError
+    InternalError(String)
 }
 
 pub trait GetDeviceStateRepository: Send + Sync {

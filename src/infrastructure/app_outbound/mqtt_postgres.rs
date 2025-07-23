@@ -40,6 +40,16 @@ pub struct MqttAppOutbound {
     device_events_service: Arc<ManageEventService<MqttEventRepository, PostgresEventRepository>>,
 }
 
+impl Clone for MqttAppOutbound {
+    fn clone(&self) -> Self {
+        Self {
+            device_service: Arc::clone(&self.device_service),
+            device_state_service: Arc::clone(&self.device_state_service),
+            device_events_service: Arc::clone(&self.device_events_service)
+        }
+    }
+}
+
 impl MqttAppOutbound {
     pub async fn new() -> Result<Self, VarError> {
         // Load env files or environment variables
