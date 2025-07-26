@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{ sync::Arc};
 
 use uuid::Uuid;
 
@@ -10,7 +10,7 @@ use crate::{
             GetDeviceRepository, UpdateDeviceRepository,
         },
     },
-    domain::device::{Device, EventDataType},
+    domain::{device::{Device, EventDataType}},
 };
 
 pub struct ManageDeviceService<
@@ -72,7 +72,7 @@ impl<
         &self,
         id: Uuid,
         name: Option<String>,
-        event_data_raw: Option<Vec<(String, String)>>,
+        event_data_raw: Option<Vec<(String, EventDataType)>>,
     ) -> Result<Device, DeviceServiceError> {
         let mut device = match self.get_repo.get_by_id(id).await {
             Ok(Some(device)) => device,
@@ -88,13 +88,7 @@ impl<
             device.name = name;
         }
         if let Some(event_data) = event_data_raw {
-            let mut event_data_validated = HashMap::new();
-            for (key, value) in event_data {
-                let val = EventDataType::from_str(&value)
-                    .map_err(|_| return DeviceServiceError::InvalidInput)?;
-                event_data_validated.insert(key, val);
-            }
-            device.event_data = event_data_validated;
+            device.event_data = event_data.into_iter().collect();
         }
 
         match self.update_repo.update(&device).await {

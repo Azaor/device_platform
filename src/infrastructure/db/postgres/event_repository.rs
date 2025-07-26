@@ -31,15 +31,15 @@ impl PostgresEventRepository {
 }
 
 impl CreateEventRepository for PostgresEventRepository {
-    async fn create_event(&self, evt: Event, event_format: &EventFormat) -> Result<(), EventRepositoryError> {
+    async fn create_event(&self, evt: Event, _: &EventFormat) -> Result<(), EventRepositoryError> {
         let query = "INSERT INTO events (id, device_id, timestamp, payload) VALUES ($1, $2, $3, $4)
                      ON CONFLICT (id, device_id) DO NOTHING";
-        
+        let event_data: HashMap<String, Value> = evt.payload.into_iter().map(|(k, v)| (k, v.into())).collect();
         sqlx::query(query)
             .bind(evt.id)
             .bind(evt.device_id)
             .bind(evt.timestamp)
-            .bind(event_format.encode_event(evt.payload)?)
+            .bind(sqlx::types::Json::from(event_data))
             .execute(&self.pool)
             .await
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;

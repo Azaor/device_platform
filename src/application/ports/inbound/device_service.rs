@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::domain::device::Device;
+use crate::domain::{device::{Device, EventDataType}, event::EventDataValue};
 
 pub enum DeviceServiceError {
     NotFound,
@@ -18,6 +18,6 @@ pub trait DeviceService {
         &self,
         id: Uuid,
         name: Option<String>,
-        metadata: Option<Vec<(String, String)>>,
+        metadata: Option<Vec<(String, EventDataType)>>,
     ) -> Result<Device, DeviceServiceError>;
 }

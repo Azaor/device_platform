@@ -6,12 +6,12 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use uuid::Uuid;
 
 use crate::{
     application::ports::{app::AppOutbound, inbound::device_service::DeviceService},
-    domain::device::{Device, EventFormat},
+    domain::{device::{Device, EventDataType, EventFormat}},
     infrastructure::http::axum::error::ErrorResponse,
 };
 
@@ -19,6 +19,7 @@ pub struct CreateDeviceRequest {
     pub user_id: Uuid,
     pub name: String,
     pub event_format: EventFormat,
+    pub event_data: HashMap<String, EventDataType>
 }
 
 #[derive(Serialize)]
@@ -67,10 +68,18 @@ impl TryFrom<Value> for CreateDeviceRequest {
                 status: 400,
                 message: "Invalid event_format".to_string(),
             })?;
+        let event_data_raw = value
+            .get("event_data")
+            .and_then(Value::as_object);
+        let mut event_data = HashMap::new();
+        if let Some(data) = event_data_raw {
+            event_data = parse_event_data(data)?.into_iter().collect();
+        }
         Ok(CreateDeviceRequest {
             user_id,
             name,
             event_format,
+            event_data
         })
     }
 }
@@ -84,12 +93,13 @@ pub async fn create_device_handler<AO: AppOutbound>(
         Ok(req) => req,
         Err(err) => return Err(err.into_response()),
     };
+    
     let device = Device::new(
         &Uuid::new_v4(),
         &payload.user_id,
         &payload.name.clone(),
         payload.event_format,
-        HashMap::new(),
+        payload.event_data,
     );
     match service.create_device(&device).await {
         Ok(device) => {
@@ -222,14 +232,13 @@ pub async fn update_device_handler<AO: AppOutbound>(
         .get("name")
         .and_then(Value::as_str)
         .map(String::from);
-    let event_data = payload
+    let event_data_raw = payload
         .get("event_data")
-        .and_then(Value::as_object)
-        .map(|m| {
-            m.iter()
-                .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
-                .collect()
-        });
+        .and_then(Value::as_object);
+    let mut event_data = None;
+    if let Some(data) = event_data_raw {
+        event_data = Some(parse_event_data(data)?);
+    }
 
     match service.update_device(id, name, event_data).await {
         // convert event_data to HashMap<String, String>
@@ -249,4 +258,22 @@ pub async fn update_device_handler<AO: AppOutbound>(
         }
         Err(err) => Err(ErrorResponse::from(err).into_response()),
     }
+}
+
+pub fn parse_event_data(event_data_raw: &Map<String, Value>) -> Result<Vec<(String, EventDataType)>, ErrorResponse> {
+    let mut data = Vec::new();
+    for (k, v) in event_data_raw.iter() {
+        let edt = match EventDataType::from_str(v.as_str().unwrap_or("")) {
+            Ok(e) => e,
+            Err(_) => {
+                return Err(ErrorResponse {
+                    status: 400,
+                    message: format!("Invalid event data type for key {}", k),
+                });
+            }
+            
+        };
+        data.push((k.clone(), edt));
+    }
+    return Ok(data)
 }
