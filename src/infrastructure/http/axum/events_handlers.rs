@@ -3,18 +3,10 @@ use std::{collections::HashMap, sync::Arc, usize};
 use axum::{ body, extract::{Path, Request, State}, response::{IntoResponse, Response}, Json};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{application::ports::{app::AppOutbound, inbound::{device_service::DeviceService, device_state_service::DeviceStateService, event_service::EventService}}, domain::event::Event, infrastructure::http::axum::error::ErrorResponse};
-
-#[derive(Serialize)]
-pub struct EventResponse {
-    pub id: Uuid,
-    pub device_id: Uuid,
-    pub timestamp: DateTime<Utc>,
-    pub payload: HashMap<String, String>,
-}
-
 
 pub async fn create_event_handler<AO: AppOutbound>(
     State(services): State<Arc<AO>>,
@@ -48,12 +40,7 @@ pub async fn create_event_handler<AO: AppOutbound>(
         Err(err) => return Err(ErrorResponse::from(err).into_response()),
     };
     let res = match event_service.handle_event(event.clone(), &device.event_format).await {
-        Ok(_) => Json(EventResponse {
-            id: event.id,
-            device_id: event.device_id,
-            timestamp: event.timestamp,
-            payload: event.payload.clone(),
-        }),
+        Ok(_) => Json(EventResponse::from(event.clone())),
         Err(err) => return Err(ErrorResponse::from(err).into_response()),
     };
     // Update the device state with the event payload
@@ -76,14 +63,29 @@ pub async fn get_event_handler<AO: AppOutbound>(
     
     match event_service.get_events(&device_id).await {
         Ok(events) => {
-            let response: Vec<EventResponse> = events.into_iter().map(|event| EventResponse {
-                id: event.id,
-                device_id: event.device_id,
-                timestamp: event.timestamp,
-                payload: event.payload,
-            }).collect();
+            let response: Vec<EventResponse> = events.into_iter().map(EventResponse::from).collect();
             Ok(Json(response))
         },
         Err(err) => Err(ErrorResponse::from(err).into_response()),
+    }
+}
+
+#[derive(Serialize)]
+pub struct EventResponse {
+    pub id: Uuid,
+    pub device_id: Uuid,
+    pub timestamp: DateTime<Utc>,
+    pub payload: HashMap<String, Value>,
+}
+
+impl From<Event> for EventResponse {
+    fn from(event: Event) -> Self {
+        let payload = event.payload.into_iter().map(|(k, v)| (k, v.into())).collect();
+        EventResponse {
+            id: event.id,
+            device_id: event.device_id,
+            timestamp: event.timestamp,
+            payload,
+        }
     }
 }

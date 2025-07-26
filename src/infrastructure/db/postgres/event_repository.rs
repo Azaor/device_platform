@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use serde_json::Value;
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::{device::EventFormat, event::Event}};
+use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::{device::EventFormat, event::{Event, EventDataValue}}};
 
 pub struct PostgresEventRepository {
     pool: sqlx::PgPool,
@@ -57,11 +58,17 @@ impl GetEventRepository for PostgresEventRepository {
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
         
         let events: Result<Vec<Event>, EventRepositoryError> = rows.into_iter().map(|row| {
+            let payload_db: sqlx::types::Json<HashMap<String, Value>> = row.get("payload");
+            let mut payload = HashMap::new();
+            for (k, v) in payload_db.0 {
+                let val = EventDataValue::try_from(v).map_err(|_| EventRepositoryError::RepositoryError(format!("Invalid data stored for key {}", k)))?;
+                payload.insert(k, val);
+            }
             Ok(Event {
                 id: row.get("id"),
                 device_id: row.get("device_id"),
                 timestamp: row.get("timestamp"),
-                payload: row.get::<sqlx::types::Json<HashMap<String, String>>, _>("payload").0,
+                payload,
             })
         }).collect();
         

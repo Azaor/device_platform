@@ -1,8 +1,11 @@
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 use std::fmt::Display;
 use std::{collections::HashMap};
+
+use crate::domain::event::EventDataValue;
 
 #[derive(Debug, Clone)]
 pub struct Device {
@@ -36,10 +39,18 @@ impl EventFormat {
             },
         }
     } 
-    pub fn encode_event(&self, event_payload: HashMap<String, String>) -> Result<String, EventFormatError> {
+    pub fn encode_event(&self, event_payload: HashMap<String, EventDataValue>) -> Result<String, EventFormatError> {
         match self {
             EventFormat::Json => {
-                return serde_json::to_string(&event_payload).map_err(|e| EventFormatError::UnsupportedFormat(e.to_string()));
+                let payload_converted: HashMap<String, Value> = event_payload.iter().map(|(k ,v)| {
+                    let val = match v {
+                        crate::domain::event::EventDataValue::String(s) => Value::from(s.to_owned()),
+                        crate::domain::event::EventDataValue::Number(n) => Value::from(n.to_owned()),
+                        crate::domain::event::EventDataValue::Boolean(b) => Value::from(b.to_owned()),
+                    };
+                    (k.to_string(), val)
+                }).collect();
+                return serde_json::to_string(&payload_converted).map_err(|e| EventFormatError::UnsupportedFormat(e.to_string()));
             },
         }
     }
@@ -82,13 +93,6 @@ impl EventDataType {
             "number" => Ok(EventDataType::Number),
             "boolean" => Ok(EventDataType::Boolean),
             _ => Err(format!("Unsupported event data type: {}", s)),
-        }
-    }
-    pub fn is_valid(&self, value: &str) -> bool {
-        match self {
-            EventDataType::String => true, // All strings are valid
-            EventDataType::Number => value.parse::<u64>().is_ok(),
-            EventDataType::Boolean => matches!(value.to_lowercase().as_str(), "true" | "false"),
         }
     }
 }

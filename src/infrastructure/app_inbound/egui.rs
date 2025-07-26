@@ -1,4 +1,4 @@
-use crate::{application::ports::app::{AppInbound, AppOutbound}, domain::device::Device, infrastructure::ui::inbound::egui_app::EguiApp};
+use crate::{application::ports::app::{AppInbound, AppOutbound}, infrastructure::ui::inbound::egui_app::EguiApp};
 
 pub struct EguiAppInbound;
 

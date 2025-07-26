@@ -29,7 +29,7 @@ impl CreateDeviceStateRepository for MqttDeviceStateRepository {
         let payload = mqtt_messages::CreateDeviceStatePayload {
             device_id: device_state.device_id.to_string(),
             last_update: device_state.last_update.to_rfc3339(),
-            values: device_state.values.clone(),
+            values: device_state.values.clone().into_iter().map(|(k, v)| (k, v.into())).collect(),
         };
 
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Create){
@@ -76,7 +76,7 @@ impl UpdateDeviceStateRepository for MqttDeviceStateRepository {
         let payload = mqtt_messages::UpdateDeviceStatePayload {
             device_id: device_state.device_id.to_string(),
             last_update: device_state.last_update.to_rfc3339(),
-            values: device_state.values.clone(),
+            values: device_state.values.clone().into_iter().map(|(k, v)| (k, v.into())).collect(),
         };
 
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Update){

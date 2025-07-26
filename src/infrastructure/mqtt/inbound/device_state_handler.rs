@@ -1,17 +1,16 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use rumqttc::Publish;
 use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
-    application::ports::{app::AppOutbound, inbound::device_state_service::DeviceStateService},
-    infrastructure::mqtt::{
+    application::ports::{app::AppOutbound, inbound::device_state_service::DeviceStateService}, domain::event::EventDataValue, infrastructure::mqtt::{
         inbound::error::HandlerError,
         mqtt_messages::{
             CreateDeviceStatePayload, DeleteDeviceStatePayload, MqttActionType, MqttMessage,
         },
-    },
+    }
 };
 
 pub async fn handle_device_state<AO: AppOutbound + 'static>(
@@ -50,9 +49,13 @@ async fn handle_create_device_state<AO: AppOutbound + 'static>(
     let device_state_service = state.get_device_state_service();
     let device_id = Uuid::from_str(&device_state.device_id)
         .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
-
+    let mut values = HashMap::new();
+    for (k, v) in device_state.values{
+        let val = EventDataValue::try_from(v).map_err(|_| HandlerError::ParsingError(format!("Invalid data received for key {}", k)))?;
+        values.insert(k, val);
+    }
     match device_state_service
-        .create_device_state(device_id, device_state.values)
+        .create_device_state(device_id, values)
         .await
     {
         Ok(_) => Ok(()),
@@ -85,9 +88,13 @@ async fn handle_update_device_state<AO: AppOutbound + 'static>(
     let device_state_service = state.get_device_state_service();
     let device_id = Uuid::from_str(&device_state.device_id)
         .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
-
+    let mut values = HashMap::new();
+    for (k, v) in device_state.values{
+        let val = EventDataValue::try_from(v).map_err(|_| HandlerError::ParsingError(format!("Invalid data received for key {}", k)))?;
+        values.insert(k, val);
+    }
     match device_state_service
-        .update_device_state(device_id, device_state.values)
+        .update_device_state(device_id, values)
         .await
     {
         Ok(_) => Ok(()),

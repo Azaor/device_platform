@@ -1,9 +1,10 @@
 use std::{collections::HashMap, str::FromStr};
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::{device_repository::DeviceRepositoryError, device_state_repository::DeviceStateRepositoryError, event_repository::EventRepositoryError}, domain::{device::{Device, EventDataType, EventFormat}, event::Event, state::DeviceState}};
+use crate::{application::ports::outbound::{device_repository::DeviceRepositoryError, device_state_repository::DeviceStateRepositoryError, event_repository::EventRepositoryError}, domain::{device::{Device, EventDataType, EventFormat}, event::{Event, EventDataValue}, state::DeviceState}};
 
 
 #[derive(Serialize, Deserialize)]
@@ -67,7 +68,7 @@ impl TryFrom<DeviceToSend> for Device {
 pub struct DeviceStateToSend {
     pub device_id: String,
     pub last_update: String,
-    pub values: HashMap<String, String>,
+    pub values: HashMap<String, Value>,
 }
 
 impl From<DeviceState> for DeviceStateToSend {
@@ -75,11 +76,7 @@ impl From<DeviceState> for DeviceStateToSend {
         DeviceStateToSend {
             device_id: device_state.device_id.to_string(),
             last_update: device_state.last_update.to_rfc3339(),
-            values: device_state
-                .values
-                .iter()
-                .map(|(k, v)| (k.clone(), v.to_string()))
-                .collect(),
+            values: device_state.values.into_iter().map(|(k, v)| (k, v.into())).collect(),
         }
     }
 }
@@ -93,7 +90,12 @@ impl TryFrom<DeviceStateToSend> for DeviceState {
         let last_update = chrono::DateTime::parse_from_rfc3339(&device_state_to_send.last_update)
             .map_err(|e| DeviceStateRepositoryError::InternalError(e.to_string()))?
             .with_timezone(&chrono::Utc);
-        let values = device_state_to_send.values.clone();
+        //let values = device_state_to_send.values.into_iter().map(|(k, v)| (k, v.try_into()));
+        let mut values = HashMap::new();
+        for (key, val) in device_state_to_send.values.into_iter() {
+            let val = EventDataValue::try_from(val).map_err(|_| DeviceStateRepositoryError::InternalError(format!("Unknown type given in {}", &key)))?;
+            values.insert(key, val);
+        }
         Ok(DeviceState {
             device_id,
             last_update,
@@ -115,7 +117,7 @@ pub struct EventToReceive {
     pub id: String,
     pub device_id: String,
     pub timestamp: String,
-    pub payload: HashMap<String, String>,
+    pub payload: HashMap<String, Value>,
 }
 
 impl TryFrom<EventToReceive> for Event {
@@ -129,7 +131,11 @@ impl TryFrom<EventToReceive> for Event {
         let timestamp = chrono::DateTime::parse_from_rfc3339(&event_to_send.timestamp)
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?
             .with_timezone(&chrono::Utc);
-        let payload = event_to_send.payload;
+        let mut payload = HashMap::new();
+        for (key, val) in event_to_send.payload.into_iter() {
+            let val = EventDataValue::try_from(val).map_err(|_| EventRepositoryError::RepositoryError(format!("Unknown type given in {}", &key)))?;
+            payload.insert(key, val);
+        }
         Ok(Event {
             id,
             device_id,

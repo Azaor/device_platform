@@ -4,9 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 # Build with mqtt and postgres features enabled
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
+
 
 [features]
-default = ["axum_inbound", "mqtt_client_outbound"]
+default = ["axum_inbound", "postgres_outbound"]
 
 axum_inbound = ["axum"]
 mqtt_inbound = ["mqtt"]

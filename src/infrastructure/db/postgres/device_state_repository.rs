@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use serde_json::Value;
 use sqlx::{PgPool, Row};
 
-use crate::{application::ports::outbound::device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, GetDeviceStateRepository, UpdateDeviceStateRepository}, domain::state::DeviceState};
+use crate::{application::ports::outbound::device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, GetDeviceStateRepository, UpdateDeviceStateRepository}, domain::{event::EventDataValue, state::DeviceState}};
 
 pub struct PostgresDeviceStateRepository {
     pool: PgPool,
@@ -31,10 +32,11 @@ impl CreateDeviceStateRepository for PostgresDeviceStateRepository {
         let query = "INSERT INTO device_states (device_id, last_update, values) VALUES ($1, $2, $3)
                      ON CONFLICT (device_id) DO UPDATE SET last_update = $2, values = $3";
         
+        let values: HashMap<String, Value> = device_state.values.clone().into_iter().map(|(k, v)| (k, v.into())).collect();
         sqlx::query(query)
             .bind(sqlx::types::Uuid::from(device_state.device_id))
             .bind(chrono::DateTime::<chrono::Utc>::from(device_state.last_update))
-            .bind(sqlx::types::Json::from(device_state.values.clone()))
+            .bind(sqlx::types::Json::from(values))
             .execute(&self.pool)
             .await
             .map_err(|e: sqlx::Error| {
@@ -61,11 +63,16 @@ impl GetDeviceStateRepository for PostgresDeviceStateRepository {
             Some(row) => {
                 let device_id: uuid::Uuid = row.get("device_id");
                 let last_update: chrono::DateTime<chrono::Utc> = row.get("last_update");
-                let values: sqlx::types::Json<HashMap<String, String>> = row.get("values");
+                let values_db: sqlx::types::Json<HashMap<String, Value>> = row.get("values");
+                let mut values = HashMap::new();
+                for (k, v) in values_db.0 {
+                    let val = EventDataValue::try_from(v).map_err(|_| DeviceStateRepositoryError::InternalError(format!("Invalid data stored for key {}", k)))?;
+                    values.insert(k, val);
+                }
                 Ok(Some(DeviceState {
                     device_id,
                     last_update: last_update.into(),
-                    values: values.0,
+                    values,
                 }))
             }
             None => Ok(None),

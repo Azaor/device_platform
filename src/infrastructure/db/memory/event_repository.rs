@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Mutex};
 
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::event::Event};
+use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::{device::EventFormat, event::Event}};
 
 pub struct InMemoryEventRepository {
     events: Mutex<HashMap<Uuid, Vec<Event>>>
@@ -14,7 +14,7 @@ impl InMemoryEventRepository {
     }
 }
 impl CreateEventRepository for InMemoryEventRepository {
-    async fn create_event(&self, event: Event) -> Result<(), EventRepositoryError> {
+    async fn create_event(&self, event: Event, _: &EventFormat) -> Result<(), EventRepositoryError> {
         let mut events = self.events.lock().unwrap();
         match events.get_mut(&event.device_id) {
             Some(device_events) => device_events.push(event),

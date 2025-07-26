@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize)]
 pub struct MqttMessage<S: Serialize> {
@@ -49,14 +50,14 @@ pub struct CreateEventPayload {
 pub struct CreateDeviceStatePayload {
     pub device_id: String,
     pub last_update: String,
-    pub values: HashMap<String, String>,
+    pub values: HashMap<String, Value>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct UpdateDeviceStatePayload {
     pub device_id: String,
     pub last_update: String,
-    pub values: HashMap<String, String>,
+    pub values: HashMap<String, Value>,
 }
 
 #[derive(Serialize, Deserialize)]

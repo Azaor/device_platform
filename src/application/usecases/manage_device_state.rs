@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use uuid::Uuid;
 
-use crate::{application::ports::{inbound::device_state_service::{DeviceStateService, DeviceStateServiceError}, outbound::device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, GetDeviceStateRepository, UpdateDeviceStateRepository}}, domain::state::DeviceState};
+use crate::{application::ports::{inbound::device_state_service::{DeviceStateService, DeviceStateServiceError}, outbound::device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, GetDeviceStateRepository, UpdateDeviceStateRepository}}, domain::{event::EventDataValue, state::DeviceState}};
 
 pub struct ManageDeviceStateService<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDeviceStateRepository, D: DeleteDeviceStateRepository> {
     pub create_repo: Arc<C>,
@@ -12,7 +12,7 @@ pub struct ManageDeviceStateService<C: CreateDeviceStateRepository, G: GetDevice
 }
 
 impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDeviceStateRepository, D: DeleteDeviceStateRepository> DeviceStateService for ManageDeviceStateService<C, G, U, D> {
-    async fn create_device_state(&self, device_id: Uuid, values: HashMap<String, String>) -> Result<DeviceState, DeviceStateServiceError> {
+    async fn create_device_state(&self, device_id: Uuid, values: HashMap<String, EventDataValue>) -> Result<DeviceState, DeviceStateServiceError> {
         let device_state = DeviceState {
             device_id,
             last_update: chrono::Utc::now(),
@@ -46,7 +46,7 @@ impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDevic
         }
     }
     
-    async fn update_device_state(&self, id: Uuid, values: HashMap<String, String>) -> Result<DeviceState, DeviceStateServiceError> {
+    async fn update_device_state(&self, id: Uuid, values: HashMap<String, EventDataValue>) -> Result<DeviceState, DeviceStateServiceError> {
         let mut device_state = match self.get_repo.get_by_id(id).await {
             Ok(Some(state)) => state,
             Ok(None) => return Err(DeviceStateServiceError::DeviceNotFound),
