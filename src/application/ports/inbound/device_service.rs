@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-use crate::domain::{device::{Device, EventDataType}, event::EventDataValue};
+use crate::domain::{device::{Device, EventDataType}};
 
 pub enum DeviceServiceError {
     NotFound,

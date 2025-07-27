@@ -12,7 +12,7 @@ debug = false
 
 
 [features]
-default = ["axum_inbound", "postgres_outbound"]
+default = ["mqtt_inbound", "postgres_outbound"]
 
 axum_inbound = ["axum"]
 mqtt_inbound = ["mqtt"]

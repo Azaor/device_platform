@@ -23,23 +23,19 @@ impl Hash for Event {
 impl Event {
     pub fn new(device: &Device, timestamp: &DateTime<Utc>, payload: &[u8]) -> Result<Self, EventFormatError> {
         let payload_received = device.event_format.decode_event(&payload)?;
-        let mut payload = HashMap::new();
         // iterate over the device's event_data to ensure all keys in payload are valid
-        for (key, value) in device.event_data.clone().into_iter() {
+        for (key, data_type) in device.event_data.clone().into_iter() {
             if !payload_received.contains_key(&key) {
                 return Err(EventFormatError::UnsupportedFormat(format!("Key '{}' not found in payload", key)));
             }
-            let converted_value = match EventDataValue::parse_event_data_type(value, &payload_received[&key]) {
-                Ok(v) => v,
-                Err(e) => {
-                    match e {
-                        EventDataValueError::InvalidType => return Err(EventFormatError::UnsupportedFormat(format!("Format given is an invalid one"))),
-                        EventDataValueError::InvalidNumber(n) => return Err(EventFormatError::UnsupportedFormat(format!("Value '{}' for key '{}' is not valid, expected a number", n, key))),
-                        EventDataValueError::InvalidBoolean(b) => return Err(EventFormatError::UnsupportedFormat(format!("Value '{}' for key '{}' is not valid, expected a boolean", b, key))),
-                    }
-                }
+            let is_valid = match payload_received.get(&key).expect("already_checked") {
+                EventDataValue::String(_) => data_type == EventDataType::String,
+                EventDataValue::Number(_) => data_type == EventDataType::Number,
+                EventDataValue::Boolean(_) => data_type == EventDataType::Boolean,
             };
-            payload.insert(key, converted_value);
+            if !is_valid {
+                return Err(EventFormatError::UnsupportedFormat(format!("Invalid value for key {}, {} expected", &key, &data_type.to_string())));
+            }
         }
         let id = Uuid::new_v4();
         let device_id = device.id.clone();
@@ -47,7 +43,7 @@ impl Event {
             id,
             device_id,
             timestamp: *timestamp,
-            payload,
+            payload: payload_received,
         });
     }
 }

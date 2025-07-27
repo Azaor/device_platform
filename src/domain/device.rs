@@ -28,14 +28,21 @@ pub enum EventFormat {
 }
 
 impl EventFormat {
-    pub fn decode_event(&self, payload: &[u8]) -> Result<HashMap<String, String>, EventFormatError> {
+    pub fn decode_event(&self, payload: &[u8]) -> Result<HashMap<String, EventDataValue>, EventFormatError> {
         match self {
             EventFormat::Json => {
                 // For simplicity, we assume the payload is a JSON string that can be parsed into a HashMap
                 // In a real application, you would use a JSON library to parse the payload
                 let json_str = String::from_utf8_lossy(payload);
-                return serde_json::from_str(&json_str)
-                    .map_err(|e| EventFormatError::UnsupportedFormat(e.to_string()));
+                let mut payload = HashMap::new();
+                let event_raw: HashMap<String, Value> =  serde_json::from_str(&json_str)
+                    .map_err(|e| EventFormatError::UnsupportedFormat(e.to_string()))?;
+                // iterate over the device's event_data to ensure all keys in payload are valid
+                for (key, value) in event_raw.into_iter() {
+                    let value = EventDataValue::try_from(value).map_err(|_| EventFormatError::UnsupportedFormat(key.clone()))?;
+                    payload.insert(key, value);
+                }
+                return Ok(payload);
             },
         }
     } 
@@ -79,7 +86,7 @@ pub enum EventFormatError {
     UnsupportedFormat(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EventDataType {
     String,
     Number,

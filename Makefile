@@ -13,10 +13,10 @@ build-mqtt-i-pg-o:
 	cargo build --no-default-features --features="mqtt_inbound postgres_outbound" --release
 
 run-axum-i-mqtt-o:
-	cargo run --no-default-features --features="axum mqtt_outbound"
+	cargo run --no-default-features --features="axum mqtt_server_outbound"
 
 build-axum-i-mqtt-o:
-	cargo build --no-default-features --features="axum mqtt_outbound" --release
+	cargo build --no-default-features --features="axum mqtt_server_outbound" --release
 
 run-egui-i-pg-o:
 	cargo run --no-default-features --features="egui_inbound postgres_outbound"
