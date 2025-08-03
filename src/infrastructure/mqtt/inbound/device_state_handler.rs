@@ -54,15 +54,10 @@ async fn handle_create_device_state<AO: AppOutbound + 'static>(
         let val = EventDataValue::try_from(v).map_err(|_| HandlerError::ParsingError(format!("Invalid data received for key {}", k)))?;
         values.insert(k, val);
     }
-    match device_state_service
+    device_state_service
         .create_device_state(device_id, values)
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(_) => Err(HandlerError::InternalError(format!(
-            "Internal Error occurred while creating device state."
-        ))),
-    }
+        .await?;
+    Ok(())
 }
 
 async fn handle_delete_device_state<AO: AppOutbound + 'static>(
@@ -73,12 +68,8 @@ async fn handle_delete_device_state<AO: AppOutbound + 'static>(
     let device_id = Uuid::from_str(&device_state.device_id)
         .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
 
-    match device_state_service.delete_device_state(device_id).await {
-        Ok(_) => Ok(()),
-        Err(_) => Err(HandlerError::InternalError(format!(
-            "Internal Error occurred while deleting device state."
-        ))),
-    }
+    device_state_service.delete_device_state(device_id).await?;
+    Ok(())
 }
 
 async fn handle_update_device_state<AO: AppOutbound + 'static>(
@@ -93,13 +84,8 @@ async fn handle_update_device_state<AO: AppOutbound + 'static>(
         let val = EventDataValue::try_from(v).map_err(|_| HandlerError::ParsingError(format!("Invalid data received for key {}", k)))?;
         values.insert(k, val);
     }
-    match device_state_service
+    device_state_service
         .update_device_state(device_id, values)
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(_) => Err(HandlerError::InternalError(format!(
-            "Internal Error occurred while updating device state."
-        ))),
-    }
+        .await?;
+    Ok(())
 }

@@ -10,6 +10,8 @@ use crate::{
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
+    
     let app_outbound = get_app_outbound().await;
 
     let app_inbound = get_app_inbound();

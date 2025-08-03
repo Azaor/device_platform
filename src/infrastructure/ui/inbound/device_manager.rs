@@ -1,9 +1,11 @@
 use std::{str::FromStr, sync::{Arc, Mutex}};
 
+use tracing::trace;
 use uuid::Uuid;
 
-use crate::{application::ports::{app::AppOutbound, inbound::device_service::DeviceService}, domain::device::Device, infrastructure::ui::inbound::LoadingStatus};
+use crate::{application::ports::{app::AppOutbound, inbound::device_service::DeviceService}, domain::device::Device, infrastructure::{ui::inbound::LoadingStatus, utils::log_device_service_error}};
 
+#[derive(Debug)]
 pub struct DeviceManager{
     user_id: Uuid,
     device_list: Arc<Mutex<Result<Vec<Device>, LoadingStatus>>>,
@@ -18,6 +20,7 @@ impl DeviceManager {
         }
     }
 
+    #[tracing::instrument]
     pub fn load_devices<'a>(&mut self, app_outbound: impl AppOutbound+ 'static) {
         let device_list = self.device_list.clone();
         let user_id = self.user_id;
@@ -28,17 +31,12 @@ impl DeviceManager {
             let device_service = app_outbound.get_device_service();
             match device_service.get_devices_by_user_id(user_id).await {
                 Ok(devices) => {
+                    trace!(result = "success");
                     *device_list.lock().unwrap() = Ok(devices);
                 }
                 Err(e) => {
-                    match e {
-                        crate::application::ports::inbound::device_service::DeviceServiceError::NotFound => {
-                            *device_list.lock().unwrap() = Ok(vec![]);
-                        }
-                        _ => {
-                            *device_list.lock().unwrap() = Err(LoadingStatus::Failed("Failed to load devices".to_string()));
-                        }
-                    }
+                    log_device_service_error(&e);
+                    *device_list.lock().unwrap() = Err(LoadingStatus::Failed("Failed to load devices".to_string()));
                 }
             }
         });

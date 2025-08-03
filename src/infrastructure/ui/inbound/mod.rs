@@ -1,7 +1,7 @@
 pub mod egui_app;
 pub mod device_manager;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub enum LoadingStatus {
     #[default]
     NotStarted,

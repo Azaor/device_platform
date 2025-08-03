@@ -16,6 +16,7 @@ use crate::{
     }
 };
 
+#[derive(Debug)]
 pub struct AxumAppInbound;
 
 impl AxumAppInbound {

@@ -25,6 +25,7 @@ use crate::{
     }, utils},
 };
 
+#[derive(Debug)]
 pub struct FullPostgresAppOutbound {
     device_service: Arc<
         ManageDeviceService<

@@ -38,7 +38,7 @@ impl From<DeviceServiceError> for ErrorResponse {
                 status: 400,
                 message: "Invalid input".to_string(),
             },
-            DeviceServiceError::InternalError => ErrorResponse {
+            DeviceServiceError::InternalError(_) => ErrorResponse {
                 status: 500,
                 message: "Internal server error".to_string(),
             },
@@ -61,7 +61,7 @@ impl From<DeviceStateServiceError> for ErrorResponse {
                 status: 409,
                 message: "Device state already exists".to_string(),
             },
-            DeviceStateServiceError::InternalError => ErrorResponse {
+            DeviceStateServiceError::InternalError(_) => ErrorResponse {
                 status: 500,
                 message: "Internal server error".to_string(),
             },

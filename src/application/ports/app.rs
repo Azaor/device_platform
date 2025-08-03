@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::application::{
     ports::outbound::{
@@ -18,7 +18,7 @@ use crate::application::{
     },
 };
 
-pub trait AppOutbound: Send + Sync + Clone {
+pub trait AppOutbound: Send + Sync + Clone + Debug {
     fn get_device_service(
         &self,
     ) -> &Arc<

@@ -12,6 +12,7 @@ use crate::{
     infrastructure::db::postgres::utils::serialize_event_data,
 };
 
+#[derive(Debug)]
 pub struct PostgresDeviceRepository {
     pool: PgPool,
 }

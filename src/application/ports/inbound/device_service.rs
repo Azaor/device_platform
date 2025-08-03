@@ -6,8 +6,10 @@ pub enum DeviceServiceError {
     NotFound,
     AlreadyExists,
     InvalidInput,
-    InternalError,
+    InternalError(String),
 }
+
+
 
 pub trait DeviceService {
     async fn create_device(&self, device: &Device) -> Result<Device, DeviceServiceError>;

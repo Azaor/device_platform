@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::{device::EventFormat, event::{Event, EventDataValue}}};
 
+#[derive(Debug)]
 pub struct PostgresEventRepository {
     pool: sqlx::PgPool,
 }

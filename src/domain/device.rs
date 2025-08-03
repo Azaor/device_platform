@@ -45,7 +45,8 @@ impl EventFormat {
                 return Ok(payload);
             },
         }
-    } 
+    }
+    #[cfg(not(feature = "mqtt"))]
     pub fn encode_event(&self, event_payload: HashMap<String, EventDataValue>) -> Result<String, EventFormatError> {
         match self {
             EventFormat::Json => {
@@ -84,6 +85,14 @@ impl TryFrom<&str> for EventFormat {
 
 pub enum EventFormatError {
     UnsupportedFormat(String),
+}
+
+impl Display for EventFormatError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EventFormatError::UnsupportedFormat(msg) => write!(f, "Unsupported event format: {}", msg),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

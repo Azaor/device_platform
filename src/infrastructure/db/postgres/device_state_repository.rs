@@ -5,6 +5,7 @@ use sqlx::{PgPool, Row};
 
 use crate::{application::ports::outbound::device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, GetDeviceStateRepository, UpdateDeviceStateRepository}, domain::{event::EventDataValue, state::DeviceState}};
 
+#[derive(Debug)]
 pub struct PostgresDeviceStateRepository {
     pool: PgPool,
 }

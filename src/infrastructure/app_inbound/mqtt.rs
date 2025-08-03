@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use rumqttc::{AsyncClient, MqttOptions, Packet};
+use tracing::{error, span, trace, warn, Level};
 
 use crate::{
     application::ports::app::{AppInbound, AppOutbound},
@@ -85,13 +86,18 @@ impl AppInbound for MQTTAppInbound {
         // ...
         while let Ok(notification) = eventloop.poll().await {
             if let rumqttc::Event::Incoming(Packet::Publish(published)) = notification {
+                let span = span!(Level::TRACE, "Handle MQTT Event");
+                let _enter = span.enter();
                 match self.router(&published, &outbound).await {
-                    Ok(_) => println!("Event handled successfully for device: {}", published.topic),
+                    Ok(_) => trace!(result = "success"),
                     Err(HandlerError::ParsingError(err)) => {
-                        eprintln!("Error parsing event: {}", err);
+                        warn!(result = "warn", details = format!("Parsing error occured: {}", err))
                     }
                     Err(HandlerError::InternalError(err)) => {
-                        eprintln!("Internal error occurred while handling event: {}", err);
+                        error!(result = "error", details = format!("Internal error occured: {}", err))
+                    }
+                    Err(HandlerError::ClientError(err)) => {
+                        warn!(result = "warn", details = format!("Client error occured: {}", err))
                     }
                 }
             }

@@ -1,7 +1,12 @@
-use std::env::VarError;
+use std::{env::VarError};
 
 #[cfg(feature = "mqtt_outbound")]
 use rumqttc::{AsyncClient, EventLoop, MqttOptions};
+#[cfg(not(feature = "mqtt"))]
+use tracing::{error, warn};
+
+#[cfg(not(feature = "mqtt"))]
+use crate::application::ports::inbound::{device_service::DeviceServiceError, device_state_service::DeviceStateServiceError, event_service::EventServiceError};
 
 #[cfg(feature = "postgres")]
 pub struct PostgresConfig {
@@ -117,4 +122,49 @@ pub fn load_http_config_from_env() -> Result<HttpConfig, VarError> {
         event_create_path,
         event_get_path,
     })
+}
+
+#[cfg(not(feature = "mqtt"))]
+pub fn log_device_service_error(err: &DeviceServiceError) {
+    match err {
+        DeviceServiceError::AlreadyExists => {
+            warn!(result = "warn", details = "device already exists");
+        },
+        DeviceServiceError::NotFound => {
+            warn!(result = "warn", details = "device not found");
+        }
+        DeviceServiceError::InvalidInput => {
+            warn!(result = "warn", details = "invalid input");
+        }
+        DeviceServiceError::InternalError(err) => {
+            error!(result = "error", details = %err);
+        }
+    }
+}
+#[cfg(not(feature = "mqtt"))]
+pub fn log_device_state_service_error(err: &DeviceStateServiceError) {
+    match err {
+        DeviceStateServiceError::DeviceNotFound => {
+            warn!(result = "warn", details = "device not found");
+        },
+        DeviceStateServiceError::DeviceStateNotFound => {
+            warn!(result = "warn", details = "device state not found");
+        }
+        DeviceStateServiceError::AlreadyExists => {
+            warn!(result = "warn", details = "device state already exists");
+        }
+        DeviceStateServiceError::InvalidInput => {
+            warn!(result = "warn", details = "invalid input provided");
+        }
+        DeviceStateServiceError::InternalError(err) => {
+            error!(result = "error", details = %err);
+        }
+    }
+}
+#[cfg(not(feature = "mqtt"))]
+pub fn log_event_service_error(err: &EventServiceError) {
+    match err {
+        EventServiceError::InvalidInput(s) => warn!(result = "warn", details = format!("Invalid input: {}", s)),
+        EventServiceError::InternalError(e) => error!(result = "error", details = format!("Internal error: {}", e)),
+    }
 }

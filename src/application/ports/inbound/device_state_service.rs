@@ -9,7 +9,19 @@ pub enum DeviceStateServiceError {
     DeviceStateNotFound,
     AlreadyExists,
     InvalidInput,
-    InternalError,
+    InternalError(String),
+}
+
+impl std::fmt::Display for DeviceStateServiceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceStateServiceError::DeviceNotFound => write!(f, "Device not found"),
+            DeviceStateServiceError::DeviceStateNotFound => write!(f, "Device state not found"),
+            DeviceStateServiceError::AlreadyExists => write!(f, "Device state already exists"),
+            DeviceStateServiceError::InvalidInput => write!(f, "Invalid input provided"),
+            DeviceStateServiceError::InternalError(s) => write!(f, "Internal error: {}", s),
+        }
+    }
 }
 
 pub trait DeviceStateService {

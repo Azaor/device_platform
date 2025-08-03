@@ -12,7 +12,7 @@ debug = false
 
 
 [features]
-default = ["mqtt_inbound", "postgres_outbound"]
+default = ["egui_inbound", "postgres_outbound"]
 
 axum_inbound = ["axum"]
 mqtt_inbound = ["mqtt"]
@@ -44,4 +44,6 @@ serde_json = "1.0.140"
 sqlx = {version="0.8.6", features = ["postgres", "runtime-tokio", "uuid", "chrono"], optional = true}
 tokio = {version="1.45.1", features = ["full"]}
 tower-http = { version = "0.6.6", features = ["cors", "trace"] }
+tracing = {version = "0.1", features = ["log"]}
+tracing-subscriber = "0.3.19"
 uuid = {version="1.17.0", features = ["v4", "serde"]}

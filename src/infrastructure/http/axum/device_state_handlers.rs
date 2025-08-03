@@ -4,14 +4,16 @@ use axum::{extract::{Path, State}, response::{IntoResponse, Response}, Json};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
+use tracing::{instrument, trace, warn};
 use uuid::Uuid;
 
 use crate::{
     application::ports::{
-        app::AppOutbound, inbound::device_state_service::DeviceStateService
-    }, domain::state::DeviceState, infrastructure::http::axum::error::ErrorResponse
+        app::AppOutbound, inbound::device_state_service::{DeviceStateService, DeviceStateServiceError}
+    }, domain::state::DeviceState, infrastructure::{http::axum::error::ErrorResponse, utils::log_device_state_service_error}
 };
 
+#[instrument]
 pub async fn get_device_state_handler<AO: AppOutbound>(
     State(app_state): State<Arc<AO>>,
     Path(device_id) : Path<String>,
@@ -19,16 +21,30 @@ pub async fn get_device_state_handler<AO: AppOutbound>(
     let service = app_state.get_device_state_service();
     let id = match Uuid::parse_str(&device_id) {
         Ok(id) => id,
-        Err(_) => return Err(ErrorResponse { status: 400, message: "Invalid device ID".to_string() }.into_response()),
+        Err(_) => {
+            warn!(result = "warn", details = format!("Invalid device ID"));
+            return Err(ErrorResponse { status: 400, message: "Invalid device ID".to_string() }.into_response());
+        },
     };
 
     match service.get_device_state(id).await {
-        Ok(Some(device_state)) => Ok(Json(DeviceStateResponse::from(device_state))),
-        Ok(None) => Err(ErrorResponse { status: 404, message: "Device state not found".to_string() }.into_response()),
+        Ok(Some(device_state)) => {
+            trace!(result = "success");
+            Ok(Json(DeviceStateResponse::from(device_state)))
+        },
+        Ok(None) => {
+            warn!(result = "warn", details = format!("Device state with ID {} not found", device_id));
+            Err(ErrorResponse { status: 404, message: "Device state not found".to_string() }.into_response())
+        },
         Err(err) => {
-            Err(ErrorResponse::from(err).into_response())
+            Err(log_and_return_response(err))
         },
     }
+}
+
+pub(crate) fn log_and_return_response(err: DeviceStateServiceError) -> Response {
+    log_device_state_service_error(&err);
+    ErrorResponse::from(err).into_response()
 }
 
 #[derive(Serialize)]

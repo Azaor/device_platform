@@ -8,6 +8,7 @@ use crate::{
     domain::{device::EventFormat, event::Event},
 };
 
+#[derive(Debug)]
 pub struct ManageEventService<C: CreateEventRepository, G: GetEventRepository> {
     pub create_repo: Arc<C>,
     pub get_repo: Arc<G>,
