@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::{application::ports::outbound::device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, DeviceStateRepositoryError, GetDeviceStateRepository, UpdateDeviceStateRepository}, domain::state::DeviceState};
 
+#[derive(Debug)]
 pub struct InMemoryDeviceStateRepository {
     device_states: Mutex<HashMap<Uuid, DeviceState>>,
 }

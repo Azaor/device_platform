@@ -2,10 +2,10 @@ use std::{env::VarError};
 
 #[cfg(feature = "mqtt_outbound")]
 use rumqttc::{AsyncClient, EventLoop, MqttOptions};
-#[cfg(not(feature = "mqtt"))]
+#[cfg(not(feature = "mqtt_inbound"))]
 use tracing::{error, warn};
 
-#[cfg(not(feature = "mqtt"))]
+#[cfg(not(feature = "mqtt_inbound"))]
 use crate::application::ports::inbound::{device_service::DeviceServiceError, device_state_service::DeviceStateServiceError, event_service::EventServiceError};
 
 #[cfg(feature = "postgres")]
@@ -124,7 +124,7 @@ pub fn load_http_config_from_env() -> Result<HttpConfig, VarError> {
     })
 }
 
-#[cfg(not(feature = "mqtt"))]
+#[cfg(not(feature = "mqtt_inbound"))]
 pub fn log_device_service_error(err: &DeviceServiceError) {
     match err {
         DeviceServiceError::AlreadyExists => {
@@ -141,7 +141,7 @@ pub fn log_device_service_error(err: &DeviceServiceError) {
         }
     }
 }
-#[cfg(not(feature = "mqtt"))]
+#[cfg(not(feature = "mqtt_inbound"))]
 pub fn log_device_state_service_error(err: &DeviceStateServiceError) {
     match err {
         DeviceStateServiceError::DeviceNotFound => {
@@ -161,7 +161,7 @@ pub fn log_device_state_service_error(err: &DeviceStateServiceError) {
         }
     }
 }
-#[cfg(not(feature = "mqtt"))]
+#[cfg(not(feature = "mqtt_inbound"))]
 pub fn log_event_service_error(err: &EventServiceError) {
     match err {
         EventServiceError::InvalidInput(s) => warn!(result = "warn", details = format!("Invalid input: {}", s)),

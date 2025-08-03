@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::{device::EventFormat, event::Event}};
 
+#[derive(Debug)]
 pub struct InMemoryEventRepository {
     events: Mutex<HashMap<Uuid, Vec<Event>>>
 }

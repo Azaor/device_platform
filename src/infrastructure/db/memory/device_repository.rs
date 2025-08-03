@@ -4,6 +4,7 @@ use crate::application::ports::outbound::device_repository::{CreateDeviceReposit
 use crate::domain::device::Device;
 use uuid::Uuid;
 
+#[derive(Debug)]
 pub struct InMemoryDeviceRepository {
     pub store: Mutex<HashMap<Uuid, Device>>,
 }

@@ -10,6 +10,7 @@ use crate::{
     infrastructure::mqtt::mqtt_messages::{self, MqttActionType},
 };
 
+#[derive(Debug)]
 pub struct MqttDeviceStateRepository {
     mqtt_client: AsyncClient,
     device_state_topic: String,

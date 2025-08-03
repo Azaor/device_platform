@@ -9,6 +9,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 pub struct ReqwestDeviceStateRepository {
     base_url: String,
     create_path: String,

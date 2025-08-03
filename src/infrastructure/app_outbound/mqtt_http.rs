@@ -37,6 +37,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 pub struct MqttHttpAppOutbound {
     device_service: Arc<
         ManageDeviceService<

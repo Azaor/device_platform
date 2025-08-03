@@ -6,6 +6,7 @@ use crate::{
     infrastructure::mqtt::mqtt_messages::{self, MqttActionType},
 };
 
+#[derive(Debug)]
 pub struct MqttEventRepository {
     mqtt_client: AsyncClient,
     event_topic: String,

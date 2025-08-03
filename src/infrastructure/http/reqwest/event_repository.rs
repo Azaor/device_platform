@@ -8,6 +8,7 @@ use crate::{
     }, infrastructure::http::reqwest::types::{EventToReceive, EventToSend},
 };
 
+#[derive(Debug)]
 pub struct ReqwestEventRepository {
     base_url: String,
     create_path: String,

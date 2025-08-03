@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 use crate::{application::ports::outbound::device_repository::{CreateDeviceRepository, DeleteDeviceRepository, DeviceRepositoryError, UpdateDeviceRepository}, domain::device::Device, infrastructure::mqtt::mqtt_messages::{self, MqttActionType}};
 
+#[derive(Debug)]
 pub struct MqttDeviceRepository {
     mqtt_client: AsyncClient,
     device_topic: String

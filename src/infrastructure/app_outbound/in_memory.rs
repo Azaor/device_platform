@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{application::{ports::{app::AppOutbound, outbound::{device_repository::{CreateDeviceRepository, DeleteDeviceRepository, GetDeviceRepository, UpdateDeviceRepository}, device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, GetDeviceStateRepository, UpdateDeviceStateRepository}, event_repository::{CreateEventRepository, GetEventRepository}}}, usecases::{manage_device::ManageDeviceService, manage_device_state::ManageDeviceStateService, manage_event::ManageEventService}}, infrastructure::db::memory::{device_repository::InMemoryDeviceRepository, device_state_repository::InMemoryDeviceStateRepository, event_repository::InMemoryEventRepository}};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct InMemoryAppOutbound {
     device_service: Arc<ManageDeviceService<InMemoryDeviceRepository, InMemoryDeviceRepository, InMemoryDeviceRepository, InMemoryDeviceRepository>>,
     device_state_service: Arc<ManageDeviceStateService<InMemoryDeviceStateRepository, InMemoryDeviceStateRepository, InMemoryDeviceStateRepository, InMemoryDeviceStateRepository>>,

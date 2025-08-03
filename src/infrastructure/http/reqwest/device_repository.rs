@@ -9,6 +9,7 @@ use crate::{
     infrastructure::http::reqwest::types::DeviceToSend,
 };
 
+#[derive(Debug)]
 pub struct ReqwestDeviceRepository {
     base_url: String,
     create_path: String,
