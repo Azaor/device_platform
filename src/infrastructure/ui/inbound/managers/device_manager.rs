@@ -21,7 +21,7 @@ impl DeviceManager {
     }
 
     #[tracing::instrument]
-    pub fn load_devices<'a>(&mut self, app_outbound: impl AppOutbound+ 'static) {
+    pub fn load_devices<'a>(&mut self, app_outbound: impl AppOutbound + 'static) {
         let device_list = self.device_list.clone();
         let user_id = self.user_id;
         // Lock the device list to set the status to InProgress

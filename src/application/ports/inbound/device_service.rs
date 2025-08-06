@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use uuid::Uuid;
 
 use crate::domain::{device::{Device, EventDataType}};
@@ -9,7 +11,16 @@ pub enum DeviceServiceError {
     InternalError(String),
 }
 
-
+impl Display for DeviceServiceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceServiceError::NotFound => write!(f, "device not found"),
+            DeviceServiceError::AlreadyExists => write!(f, "device already exists"),
+            DeviceServiceError::InvalidInput => write!(f, "invalid input provided"),
+            DeviceServiceError::InternalError(e) => write!(f, "internal error: {}", e)
+        }
+    }
+}
 
 pub trait DeviceService {
     async fn create_device(&self, device: &Device) -> Result<Device, DeviceServiceError>;
