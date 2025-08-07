@@ -18,7 +18,7 @@ impl InMemoryDeviceRepository {
 impl CreateDeviceRepository for InMemoryDeviceRepository{
     async fn create(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
         let mut map = self.store.lock().unwrap();
-        map.insert(device.id, device.clone());
+        map.insert(*device.id(), device.clone());
         Ok(())
     }
 }
@@ -35,7 +35,7 @@ impl GetDeviceRepository for InMemoryDeviceRepository {
     async fn get_by_user_id(&self, user_id: Uuid) -> Result<Vec<Device>, DeviceRepositoryError> {
         let map = self.store.lock().unwrap();
         let devices: Vec<Device> = map.values()
-            .filter(|device| device.user_id == user_id)
+            .filter(|device| device.user_id() == &user_id)
             .cloned()
             .collect();
         Ok(devices)
@@ -45,8 +45,8 @@ impl GetDeviceRepository for InMemoryDeviceRepository {
 impl UpdateDeviceRepository for InMemoryDeviceRepository {
     async fn update(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
         let mut map = self.store.lock().unwrap();
-        if map.contains_key(&device.id) {
-            map.insert(device.id, device.clone());
+        if map.contains_key(device.id()) {
+            map.insert(*device.id(), device.clone());
             Ok(())
         } else {
             Err(DeviceRepositoryError::NotFound)

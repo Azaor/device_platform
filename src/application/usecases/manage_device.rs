@@ -86,10 +86,10 @@ impl<
         };
 
         if let Some(name) = name {
-            device.name = name;
+            device.set_name(&name);
         }
         if let Some(event_data) = event_data_raw {
-            device.event_data = event_data.into_iter().collect();
+            device.set_event_data(event_data.into_iter().collect());
         }
 
         match self.update_repo.update(&device).await {

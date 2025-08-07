@@ -32,9 +32,9 @@ impl Event {
         };
     }
     pub fn new_checked(device: &Device, timestamp: &DateTime<Utc>, payload: &[u8]) -> Result<Self, EventFormatError> {
-        let payload_received = device.event_format.decode_event(&payload)?;
+        let payload_received = device.event_format().decode_event(&payload)?;
         // iterate over the device's event_data to ensure all keys in payload are valid
-        for (key, data_type) in device.event_data.clone().into_iter() {
+        for (key, data_type) in device.event_data().clone().into_iter() {
             if !payload_received.contains_key(&key) {
                 return Err(EventFormatError::UnsupportedFormat(format!("Key '{}' not found in payload", key)));
             }
@@ -48,7 +48,7 @@ impl Event {
             }
         }
         let id = Uuid::new_v4();
-        let device_id = device.id.clone();
+        let device_id = device.id().clone();
         return Ok(Self {
             id,
             device_id,

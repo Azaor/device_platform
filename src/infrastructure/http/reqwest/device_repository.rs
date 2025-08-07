@@ -125,7 +125,7 @@ impl UpdateDeviceRepository for ReqwestDeviceRepository {
             "{}{}/{}",
             self.base_url,
             self.update_path,
-            device.id.to_string()
+            device.id().to_string()
         );
         let res = client
             .put(&url)

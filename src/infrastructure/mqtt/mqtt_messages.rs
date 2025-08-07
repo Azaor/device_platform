@@ -19,6 +19,7 @@ pub enum MqttActionType {
 #[derive(Serialize, Deserialize)]
 pub struct CreateDevicePayload {
     pub id: String,
+    pub physical_id: String,
     pub user_id: String,
     pub name: String,
     pub event_format: String,

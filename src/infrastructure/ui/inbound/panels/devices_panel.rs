@@ -28,16 +28,16 @@ pub fn display_device_panel<AO: AppOutbound+'static>(ui: &mut egui::Ui, device_m
                                         .inner_margin(egui::Margin::symmetric(10, 8))
                                         .show(ui, |ui| {
                                             ui.vertical(|ui| {
-                                                ui.heading(&device.name);
+                                                ui.heading(device.name());
                                                 ui.separator();
-                                                ui.label(format!("🔢 ID : {}", device.id));
+                                                ui.label(format!("🔢 ID : {}", device.id()));
                                                 ui.label(format!(
                                                     "📦 Données : {:?}",
-                                                    device.event_data
+                                                    device.event_data()
                                                 ));
                                                 ui.label(format!(
                                                     "🧾 Format : {:?}",
-                                                    device.event_format
+                                                    device.event_format()
                                                 ));
                                             });
                                         });

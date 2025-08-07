@@ -47,7 +47,7 @@ async fn handle_create_event<AO: AppOutbound + 'static>(
     };
 
     let event = Event::new_checked(&device, &timestamp, &event.event_data.as_bytes())?;
-    event_service.handle_event(event.clone(), &device.event_format).await?;
+    event_service.handle_event(event.clone(), &device.event_format()).await?;
     device_state_service
         .create_device_state(device_id, event.payload)
         .await?;

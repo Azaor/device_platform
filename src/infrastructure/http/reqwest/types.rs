@@ -10,6 +10,7 @@ use crate::{application::ports::outbound::{device_repository::DeviceRepositoryEr
 #[derive(Serialize, Deserialize)]
 pub struct DeviceToSend {
     pub id: String,
+    pub physical_id: String,
     pub user_id: String,
     pub name: String,
     pub event_format: String,
@@ -18,17 +19,18 @@ pub struct DeviceToSend {
 
 impl From<Device> for DeviceToSend {
     fn from(device: Device) -> Self {
-        let device_id = device.id.to_string();
-        let user_id = device.user_id.to_string();
-        let name = device.name.to_string();
-        let event_format = device.event_format.to_string();
+        let device_id = device.id().to_string();
+        let user_id = device.user_id().to_string();
+        let name = device.name().to_string();
+        let event_format = device.event_format().to_string();
         let event_data = device
-            .event_data
+            .event_data()
             .iter()
             .map(|(key, val)| return (key.clone(), val.to_string()))
             .collect();
         DeviceToSend {
             id: device_id,
+            physical_id: device.physical_id().to_string(),
             user_id,
             name,
             event_format,
@@ -54,13 +56,14 @@ impl TryFrom<DeviceToSend> for Device {
                 .map_err(|e| DeviceRepositoryError::InternalError(e))?;
             event_data.insert(key.clone(), value);
         }
-        Ok(Device {
-            id: device_id,
-            user_id,
-            name,
+        Ok(Device::new(
+            &device_id,
+            &device_to_send.physical_id,
+            &user_id,
+            &name,
             event_format,
             event_data,
-        })
+        ))
     }
 }
 

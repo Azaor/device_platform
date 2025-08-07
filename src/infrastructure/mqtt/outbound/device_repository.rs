@@ -18,17 +18,18 @@ impl MqttDeviceRepository {
 
 impl CreateDeviceRepository for MqttDeviceRepository {
     async fn create(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
-        let event_data = match serde_json::to_string(&device.event_data) {
+        let event_data = match serde_json::to_string(&device.event_data()) {
             Ok(r) => r,
             Err(e) => {
                 return Err(DeviceRepositoryError::InternalError(e.to_string()))
             }
         };
         let mqtt_payload = mqtt_messages::CreateDevicePayload {
-            id: device.id.to_string(),
-            user_id: device.user_id.to_string(),
-            name: device.name.to_string(),
-            event_format: device.event_format.to_string(),
+            id: device.id().to_string(),
+            physical_id: device.physical_id().to_string(),
+            user_id: device.user_id().to_string(),
+            name: device.name().to_string(),
+            event_format: device.event_format().to_string(),
             event_data: event_data,
         };
 
@@ -57,17 +58,17 @@ impl CreateDeviceRepository for MqttDeviceRepository {
 
 impl UpdateDeviceRepository for MqttDeviceRepository {
     async fn update(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
-        let event_data = match serde_json::to_string(&device.event_data) {
+        let event_data = match serde_json::to_string(&device.event_data()) {
             Ok(r) => r,
             Err(e) => {
                 return Err(DeviceRepositoryError::InternalError(e.to_string()))
             }
         };
         let payload = mqtt_messages::UpdateDevicePayload {
-            id: device.id.to_string(),
-            user_id: device.user_id.to_string(),
-            name: device.name.to_string(),
-            event_format: device.event_format.to_string(),
+            id: device.id().to_string(),
+            user_id: device.user_id().to_string(),
+            name: device.name().to_string(),
+            event_format: device.event_format().to_string(),
             event_data: event_data,
         };
 

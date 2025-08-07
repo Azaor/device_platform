@@ -9,17 +9,43 @@ use crate::domain::event::EventDataValue;
 
 #[derive(Debug, Clone)]
 pub struct Device {
-    pub id: Uuid,
-    pub user_id: Uuid,
-    pub name: String,
-    pub event_format: EventFormat,
-    pub event_data: HashMap<String, EventDataType>,
+    id: Uuid,
+    physical_id: String,
+    user_id: Uuid,
+    name: String,
+    event_format: EventFormat,
+    event_data: HashMap<String, EventDataType>,
 }
 
 impl Device {
-    pub fn new(id: &Uuid, user_id: &Uuid, name: &str, event_format: EventFormat, event_data: HashMap<String, EventDataType>) -> Self {
-        return Self { id: id.clone(), user_id: user_id.clone(), name: name.to_string(), event_format, event_data }
+    pub fn new(id: &Uuid, physical_id: &str, user_id: &Uuid, name: &str, event_format: EventFormat, event_data: HashMap<String, EventDataType>) -> Self {
+        return Self { id: id.clone(), physical_id: physical_id.to_string(), user_id: user_id.clone(), name: name.to_string(), event_format, event_data }
     }
+    pub fn id(&self) -> &Uuid {
+        &self.id
+    }
+    pub fn physical_id(&self) -> &str {
+        &self.physical_id
+    }
+    pub fn user_id(&self) -> &Uuid {
+        &self.user_id
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn set_name(&mut self, name: &str) {
+        self.name = name.to_string();
+    }
+    pub fn event_format(&self) -> &EventFormat {
+        &self.event_format
+    }
+    pub fn event_data(&self) -> &HashMap<String, EventDataType> {
+        &self.event_data
+    }
+    pub fn set_event_data(&mut self, event_data: HashMap<String, EventDataType>) {
+        self.event_data = event_data;
+    }
+
 }
 
 #[derive(Debug, Clone)]

@@ -60,7 +60,8 @@ pub async fn handle_create_device<AO: AppOutbound + 'static>(
             .map_err(|_| {
                 HandlerError::ParsingError("invalid Uuid format".to_string())
             })?,
-        &Uuid::from_str(&device.user_id)
+        &device.physical_id,
+            &Uuid::from_str(&device.user_id)
             .map_err(|_| {
                 HandlerError::ParsingError("invalid Uuid format".to_string())
             })?,

@@ -35,6 +35,7 @@ pub async fn create_device_handler<AO: AppOutbound>(
     
     let device = Device::new(
         &Uuid::new_v4(),
+        &payload.physical_id,
         &payload.user_id,
         &payload.name.clone(),
         payload.event_format,
@@ -43,16 +44,18 @@ pub async fn create_device_handler<AO: AppOutbound>(
     match service.create_device(&device).await {
         Ok(device) => {
             let event_data: HashMap<String, String> = device
-                .event_data
+                .event_data()
+                .clone()
                 .into_iter()
                 .map(|(k, v)| (k, v.to_string()))
                 .collect();
             trace!(result = "success");
             Ok(Json(DeviceResponse {
-                id: device.id,
-                user_id: device.user_id,
-                name: device.name,
-                event_format: device.event_format.to_string(),
+                id: device.id().clone(),
+                physical_id: device.physical_id().to_string(),
+                user_id: device.user_id().clone(),
+                name: device.name().to_string(),
+                event_format: device.event_format().to_string(),
                 event_data: event_data,
             }))
         }
@@ -84,16 +87,18 @@ pub async fn get_device_handler<AO: AppOutbound>(
     match service.get_device(id).await {
         Ok(Some(device)) => {
             let event_data: HashMap<String, String> = device
-                .event_data
+                .event_data()
+                .clone()
                 .into_iter()
                 .map(|(k, v)| (k, v.to_string()))
                 .collect();
             trace!(result = "success");
             Ok(Json(DeviceResponse {
-                id: device.id,
-                user_id: device.user_id,
-                name: device.name,
-                event_format: device.event_format.to_string(),
+                id: device.id().clone(),
+                physical_id: device.physical_id().to_string(),
+                user_id: device.user_id().clone(),
+                name: device.name().to_string(),
+                event_format: device.event_format().to_string(),
                 event_data: event_data,
             }))
         }
@@ -119,15 +124,17 @@ pub async fn get_devices_handler<AO: AppOutbound>(
             let mut device_responses = Vec::new();
             for device in devices {
                 let event_data: HashMap<String, String> = device
-                    .event_data
+                    .event_data(    )
+                    .clone()
                     .into_iter()
                     .map(|(k, v)| (k, v.to_string()))
                     .collect();
                 device_responses.push(DeviceResponse {
-                    id: device.id,
-                    user_id: device.user_id,
-                    name: device.name,
-                    event_format: device.event_format.to_string(),
+                    id: device.id().clone(),
+                    physical_id: device.physical_id().to_string(),
+                    user_id: device.user_id().clone(),
+                    name: device.name().to_string(),
+                    event_format: device.event_format().to_string(),
                     event_data: event_data,
                 })
             }
@@ -206,16 +213,18 @@ pub async fn update_device_handler<AO: AppOutbound>(
         // convert event_data to HashMap<String, String>
         Ok(device) => {
             let event_data: HashMap<String, String> = device
-                .event_data
+                .event_data()
+                .clone()
                 .into_iter()
                 .map(|(k, v)| (k, v.to_string()))
                 .collect();
             trace!(result = "success");
             Ok(Json(DeviceResponse {
-                id: device.id,
-                user_id: device.user_id,
-                name: device.name,
-                event_format: device.event_format.to_string(),
+                id: device.id().clone(),
+                physical_id: device.physical_id().to_string(),
+                user_id: device.user_id().clone(),
+                name: device.name().to_string(),
+                event_format: device.event_format().to_string(),
                 event_data: event_data,
             }))
         }
@@ -246,6 +255,7 @@ pub fn parse_event_data(event_data_raw: &Map<String, Value>) -> Result<Vec<(Stri
 
 
 pub struct CreateDeviceRequest {
+    pub physical_id: String,
     pub user_id: Uuid,
     pub name: String,
     pub event_format: EventFormat,
@@ -264,6 +274,11 @@ impl TryFrom<Value> for CreateDeviceRequest {
                 .ok_or_else(|| String::from("Invalid user_id format"))?,
             None => return Err("Missing user_id".to_string()),
         };
+        let physical_id = value
+            .get("physical_id")
+            .and_then(Value::as_str)
+            .map(String::from)
+            .ok_or_else(|| "Missing physical_id".to_string())?;
         let name = value
             .get("name")
             .and_then(Value::as_str)
@@ -286,6 +301,7 @@ impl TryFrom<Value> for CreateDeviceRequest {
         }
         Ok(CreateDeviceRequest {
             user_id,
+            physical_id,
             name,
             event_format,
             event_data
@@ -296,6 +312,7 @@ impl TryFrom<Value> for CreateDeviceRequest {
 #[derive(Serialize)]
 pub struct DeviceResponse {
     pub id: Uuid,
+    pub physical_id: String,
     pub user_id: Uuid,
     pub name: String,
     pub event_format: String,

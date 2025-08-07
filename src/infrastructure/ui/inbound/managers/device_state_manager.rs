@@ -61,7 +61,7 @@ impl DeviceStateManager {
                     let device_state_service = app_outbound.get_device_state_service();
                     let mut device_states_list = HashMap::new();
                     for device in devices {
-                        let device_state = match device_state_service.get_device_state(device.id).await
+                        let device_state = match device_state_service.get_device_state(*device.id()).await
                         {
                             Ok(s) => s,
                             Err(e) => {
@@ -83,22 +83,22 @@ impl DeviceStateManager {
                         let state_to_insert = match device_state {
                             Some(state) => {
                                 DisplayableDeviceState {
-                                    device_id: device.id,
-                                    device_name: device.name.clone(),
+                                    device_id: *device.id(),
+                                    device_name: device.name().to_string(),
                                     values: Some(state.values.clone()),
                                     last_update: Some(state.last_update),
                                 }
                             }
                             None => {
                                 DisplayableDeviceState {
-                                    device_id: device.id,
-                                    device_name: device.name.clone(),
+                                    device_id: *device.id(),
+                                    device_name: device.name().to_string(),
                                     values: None,
                                     last_update: None,
                                 }
                             }, // Skip devices with no state
                         };
-                        device_states_list.insert(device.id, state_to_insert);
+                        device_states_list.insert(*device.id(), state_to_insert);
                     }
                     let locked_success = false;
                     while !locked_success {
