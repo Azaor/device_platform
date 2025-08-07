@@ -4,4 +4,5 @@ pub mod mqtt;
 pub mod app_outbound;
 pub mod app_inbound;
 pub mod ui;
+pub mod serial;
 mod utils;

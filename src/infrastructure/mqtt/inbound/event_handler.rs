@@ -46,7 +46,7 @@ async fn handle_create_event<AO: AppOutbound + 'static>(
         None => return Err(HandlerError::ParsingError("Device not found".to_string())), // Skip if device not found
     };
 
-    let event = Event::new(&device, &timestamp, &event.event_data.as_bytes())?;
+    let event = Event::new_checked(&device, &timestamp, &event.event_data.as_bytes())?;
     event_service.handle_event(event.clone(), &device.event_format).await?;
     device_state_service
         .create_device_state(device_id, event.payload)

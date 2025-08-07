@@ -42,7 +42,7 @@ pub async fn create_event_handler<AO: AppOutbound>(
         Err(err) => return Err(ErrorResponse::from(err).into_response()),
     };
 
-    let event = match Event::new(
+    let event = match Event::new_checked(
         &device,
         &Utc::now(),
         &body_bytes,

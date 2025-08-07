@@ -21,7 +21,17 @@ impl Hash for Event {
     }
 }
 impl Event {
-    pub fn new(device: &Device, timestamp: &DateTime<Utc>, payload: &[u8]) -> Result<Self, EventFormatError> {
+    pub fn new(device_id: Uuid, timestamp: &DateTime<Utc>, payload: HashMap<String, EventDataValue>) -> Self{
+        let id = Uuid::new_v4();
+        let device_id = device_id.clone();
+        return Self {
+            id,
+            device_id,
+            timestamp: *timestamp,
+            payload,
+        };
+    }
+    pub fn new_checked(device: &Device, timestamp: &DateTime<Utc>, payload: &[u8]) -> Result<Self, EventFormatError> {
         let payload_received = device.event_format.decode_event(&payload)?;
         // iterate over the device's event_data to ensure all keys in payload are valid
         for (key, data_type) in device.event_data.clone().into_iter() {
@@ -96,6 +106,27 @@ impl TryFrom<Value> for EventDataValue {
     }
 }
 
+impl TryFrom<&str> for EventDataValue {
+    type Error = EventDataValueError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            return Err(EventDataValueError::InvalidType);
+        }
+        // Attempt to parse as a number first
+        if let Ok(num) = value.parse::<u64>() {
+            return Ok(EventDataValue::Number(num));
+        }
+        // Attempt to parse as a boolean
+        if let Ok(boolean) = value.parse::<bool>() {
+            return Ok(EventDataValue::Boolean(boolean));
+        }
+        // Otherwise, treat it as a string
+        Ok(EventDataValue::String(value.to_string()))
+    }
+}
+
+#[derive(Debug)]
 pub enum EventDataValueError {
     InvalidType,
     InvalidNumber(String),
