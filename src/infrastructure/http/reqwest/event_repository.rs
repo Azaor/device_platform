@@ -30,7 +30,7 @@ impl CreateEventRepository for ReqwestEventRepository {
         let url = format!("{}{}", self.base_url, self.create_path);
 
         let event_id = event.id.to_string();
-        let device_id = event.device_id.to_string();
+        let device_id = event.device_physical_id.to_string();
         let timestamp = event.timestamp.to_rfc3339();
         let data = event_format
             .encode_event(event.payload)
@@ -68,8 +68,8 @@ impl CreateEventRepository for ReqwestEventRepository {
 }
 
 impl GetEventRepository for ReqwestEventRepository {
-    async fn get_events(&self, device_id: &uuid::Uuid) -> Result<Vec<Event>, EventRepositoryError> {
-        let url = format!("{}{}/{}", self.base_url, self.get_path, device_id);
+    async fn get_events(&self, device_physical_id: &str) -> Result<Vec<Event>, EventRepositoryError> {
+        let url = format!("{}{}/{}", self.base_url, self.get_path, device_physical_id);
 
         let client = reqwest::Client::new();
 

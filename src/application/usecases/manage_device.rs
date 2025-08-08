@@ -69,6 +69,7 @@ impl<
             Err(DeviceRepositoryError::Conflict) => Err(DeviceServiceError::InternalError(format!("Unexpected conflict error while deleting device"))), // Catch-all for any other errors
         }
     }
+
     async fn update_device(
         &self,
         id: Uuid,
@@ -97,6 +98,16 @@ impl<
             Err(DeviceRepositoryError::Conflict) => Err(DeviceServiceError::AlreadyExists),
             Err(DeviceRepositoryError::NotFound) => Err(DeviceServiceError::InternalError(format!("Unexpected not found error while creating device"))),
             Err(DeviceRepositoryError::InternalError(v)) => Err(DeviceServiceError::InternalError(v)),
+        }
+    }
+    
+    async fn get_device_by_physical_id(&self, physical_id: &str) -> Result<Option<Device>, DeviceServiceError> {
+        match self.get_repo.get_by_physical_id(physical_id).await {
+            Ok(Some(device)) => Ok(Some(device)),
+            Ok(None) => Err(DeviceServiceError::NotFound),
+            Err(DeviceRepositoryError::NotFound) => Err(DeviceServiceError::NotFound),
+            Err(DeviceRepositoryError::InternalError(v)) => Err(DeviceServiceError::InternalError(v)),
+            Err(DeviceRepositoryError::Conflict) => Err(DeviceServiceError::InternalError(format!("Unexpected conflict error while getting device by physical ID"))), // Catch-all for any other errors
         }
     }
 }

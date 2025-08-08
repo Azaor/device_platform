@@ -118,7 +118,7 @@ pub struct EventToSend {
 #[derive(Deserialize)]
 pub struct EventToReceive {
     pub id: String,
-    pub device_id: String,
+    pub device_physical_id: String,
     pub timestamp: String,
     pub payload: HashMap<String, Value>,
 }
@@ -129,7 +129,7 @@ impl TryFrom<EventToReceive> for Event {
     fn try_from(event_to_send: EventToReceive) -> Result<Self, Self::Error> {
         let id = Uuid::from_str(&event_to_send.id)
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
-        let device_id = Uuid::from_str(&event_to_send.device_id)
+        let device_physical_id = Uuid::from_str(&event_to_send.device_physical_id)
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
         let timestamp = chrono::DateTime::parse_from_rfc3339(&event_to_send.timestamp)
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?
@@ -141,7 +141,7 @@ impl TryFrom<EventToReceive> for Event {
         }
         Ok(Event {
             id,
-            device_id,
+            device_physical_id: device_physical_id.to_string(),
             timestamp,
             payload,
         })

@@ -12,7 +12,7 @@ use crate::{application::ports::{app::AppOutbound, inbound::{device_service::Dev
 #[instrument]
 pub async fn create_event_handler<AO: AppOutbound>(
     State(services): State<Arc<AO>>,
-    Path(device_id) : Path<String>,
+    Path(device_physical_id) : Path<String>,
     r: Request,
 ) -> Result<Json<EventResponse>, Response> {
     let request_body = r.into_body();
@@ -26,17 +26,10 @@ pub async fn create_event_handler<AO: AppOutbound>(
     let event_service = services.get_event_service();
     let device_service = services.get_device_service();
     let device_state_service = services.get_device_state_service();
-    let device_id = match Uuid::parse_str(&device_id) {
-        Ok(id) => id,
-        Err(e) => {
-            warn!(result = "warn", details = %e);
-            return Err(ErrorResponse { status: 400, message: "Invalid device_id format".to_string() }.into_response())
-        },
-    };
-    let device = match device_service.get_device(device_id).await {
+    let device = match device_service.get_device_by_physical_id(&device_physical_id).await {
         Ok(Some(device)) => device,
         Ok(None) => {
-            warn!(result = "warn", details = format!("Device with ID {} not found in DB", device_id));
+            warn!(result = "warn", details = format!("Device with ID {} not found in DB", &device_physical_id));
             return Err(ErrorResponse { status: 404, message: "Device not found".to_string() }.into_response())
         },
         Err(err) => return Err(ErrorResponse::from(err).into_response()),
@@ -62,7 +55,7 @@ pub async fn create_event_handler<AO: AppOutbound>(
         },
     };
     // Update the device state with the event payload
-    match device_state_service.create_device_state(device_id, event.payload).await {
+    match device_state_service.create_device_state(device.id().clone(), event.payload).await {
         Ok(_) => {
             trace!(result = "success");
             Ok(res)
@@ -80,6 +73,7 @@ pub async fn get_event_handler<AO: AppOutbound>(
     Path(device_id): Path<String>,
 ) -> Result<Json<Vec<EventResponse>>, Response> {
     let event_service = services.get_event_service();
+    let device_service = services.get_device_service();
     let device_id = match Uuid::parse_str(&device_id) {
         Ok(id) => id,
         Err(err) => {
@@ -87,8 +81,15 @@ pub async fn get_event_handler<AO: AppOutbound>(
             return Err(ErrorResponse { status: 400, message: "Invalid device_id format".to_string() }.into_response())
         },
     };
-    
-    match event_service.get_events(&device_id).await {
+    let device = match device_service.get_device(device_id).await {
+        Ok(Some(device)) => device,
+        Ok(None) => {
+            warn!(result = "warn", details = format!("Device with ID {} not found in DB", device_id));
+            return Err(ErrorResponse { status: 404, message: "Device not found".to_string() }.into_response())
+        },
+        Err(err) => return Err(ErrorResponse::from(err).into_response()),
+    };
+    match event_service.get_events(&device.physical_id()).await {
         Ok(events) => {
             let response: Vec<EventResponse> = events.into_iter().map(EventResponse::from).collect();
             trace!(result = "success");
@@ -111,7 +112,7 @@ pub fn log_and_return_response(err: EventServiceError) -> Response {
 #[derive(Serialize)]
 pub struct EventResponse {
     pub id: Uuid,
-    pub device_id: Uuid,
+    pub device_physical_id: String,
     pub timestamp: DateTime<Utc>,
     pub payload: HashMap<String, Value>,
 }
@@ -121,7 +122,7 @@ impl From<Event> for EventResponse {
         let payload = event.payload.into_iter().map(|(k, v)| (k, v.into())).collect();
         EventResponse {
             id: event.id,
-            device_id: event.device_id,
+            device_physical_id: event.device_physical_id,
             timestamp: event.timestamp,
             payload,
         }

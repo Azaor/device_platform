@@ -72,7 +72,6 @@ impl EventFormat {
             },
         }
     }
-    #[cfg(not(feature = "mqtt_inbound"))]
     pub fn encode_event(&self, event_payload: HashMap<String, EventDataValue>) -> Result<String, EventFormatError> {
         match self {
             EventFormat::Json => {

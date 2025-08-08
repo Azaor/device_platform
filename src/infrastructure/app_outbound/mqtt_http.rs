@@ -87,6 +87,7 @@ impl MqttHttpAppOutbound {
             &http_config.base_url,
             &http_config.device_create_path.unwrap_or_default(),
             &http_config.device_get_path.unwrap_or_default(),
+            &http_config.device_get_by_physical_id_path.unwrap_or_default(),
             &http_config.device_update_path.unwrap_or_default(),
             &http_config.device_delete_path.unwrap_or_default(),
         );

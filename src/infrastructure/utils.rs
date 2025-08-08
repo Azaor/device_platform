@@ -85,6 +85,7 @@ pub struct HttpConfig {
     pub device_create_path: Option<String>,
     pub device_update_path: Option<String>,
     pub device_get_path: Option<String>,
+    pub device_get_by_physical_id_path: Option<String>,
     pub device_delete_path: Option<String>,
     pub device_state_create_path: Option<String>,
     pub device_state_update_path: Option<String>,
@@ -101,6 +102,7 @@ pub fn load_http_config_from_env() -> Result<HttpConfig, VarError> {
     let device_create_path = std::env::var("HTTP_DEVICE_CREATE_PATH").ok();
     let device_update_path = std::env::var("HTTP_DEVICE_UPDATE_PATH").ok();
     let device_get_path = std::env::var("HTTP_DEVICE_GET_PATH").ok();
+    let device_get_by_physical_id_path = std::env::var("HTTP_DEVICE_GET_BY_PHYSICAL_PATH").ok();
     let device_delete_path = std::env::var("HTTP_DEVICE_DELETE_PATH").ok();
     let device_state_create_path = std::env::var("HTTP_DEVICE_STATE_CREATE_PATH").ok();
     let device_state_update_path = std::env::var("HTTP_DEVICE_STATE_UPDATE_PATH").ok();
@@ -114,6 +116,7 @@ pub fn load_http_config_from_env() -> Result<HttpConfig, VarError> {
         device_create_path,
         device_update_path,
         device_get_path,
+        device_get_by_physical_id_path,
         device_delete_path,
         device_state_create_path,
         device_state_update_path,

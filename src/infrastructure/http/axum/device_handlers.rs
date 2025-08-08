@@ -114,6 +114,42 @@ pub async fn get_device_handler<AO: AppOutbound>(
 }
 
 #[instrument]
+pub async fn get_device_by_physical_id<AO: AppOutbound>(
+    State(services): State<Arc<AO>>,
+    Path(physical_id): Path<String>,
+) -> Result<Json<DeviceResponse>, Response> {
+    let service = services.get_device_service();
+
+    match service.get_device_by_physical_id(&physical_id).await {
+        Ok(Some(device)) => {
+            let event_data: HashMap<String, String> = device
+                .event_data()
+                .clone()
+                .into_iter()
+                .map(|(k, v)| (k, v.to_string()))
+                .collect();
+            trace!(result = "success");
+            Ok(Json(DeviceResponse {
+                id: device.id().clone(),
+                physical_id: device.physical_id().to_string(),
+                user_id: device.user_id().clone(),
+                name: device.name().to_string(),
+                event_format: device.event_format().to_string(),
+                event_data: event_data,
+            }))
+        }
+        Ok(None) => {
+            warn!(result = "warn", details = format!("Device with physical ID {} not found in DB", physical_id));
+            Err(ErrorResponse {
+                status: 404,
+                message: "Device not found".to_string(),
+            }.into_response())
+        },
+        Err(err) => Err(log_and_return_response(err))
+    }
+}
+
+#[instrument]
 pub async fn get_devices_handler<AO: AppOutbound>(
     State(services): State<Arc<AO>>,
 ) -> Result<Json<Vec<DeviceResponse>>, Response> {

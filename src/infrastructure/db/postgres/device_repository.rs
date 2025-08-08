@@ -44,10 +44,11 @@ impl PostgresDeviceRepository {
 
 impl CreateDeviceRepository for PostgresDeviceRepository {
     async fn create(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
-        let query = "INSERT INTO devices (id, user_id, name, event_format, event_data) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name = $3, event_format = $4, event_data = $5";
+        let query = "INSERT INTO devices (id, user_id, physical_id, name, event_format, event_data) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET physical_id = $3, name = $4, event_format = $5, event_data = $6";
         let result: PgQueryResult = sqlx::query(query)
             .bind(sqlx::types::Uuid::from(*device.id()))
             .bind(sqlx::types::Uuid::from(*device.user_id()))
+            .bind(&device.physical_id())
             .bind(&device.name())
             .bind(&device.event_format().to_string())
             .bind(sqlx::types::Json::from(serialize_event_data(
@@ -150,6 +151,48 @@ impl GetDeviceRepository for PostgresDeviceRepository {
             ))
         }
         Ok(devices)
+    }
+    
+    async fn get_by_physical_id(&self, physical_id: &str) -> Result<Option<Device>, DeviceRepositoryError> {
+        let query =
+            "SELECT id, user_id, physical_id, name, event_format, event_data FROM devices WHERE physical_id = $1";
+        let row = sqlx::query(query)
+            .bind(physical_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| {
+                println!("Error fetching devices by physical ID {}: {:?}", physical_id, e);
+                DeviceRepositoryError::InternalError(e.to_string())
+            })?;
+        let row = match row {
+            Some(row) => row,
+            None => return Ok(None), // Device not found
+        };
+        // Extracting the fields from the row
+        let id: Uuid = row.get("id");
+        let user_id: Uuid = row.get("user_id");
+        let physical_id: String = row.get("physical_id");
+        let name: String = row.get("name");
+        let event_format: String = row.get("event_format");
+        let event_data_raw: sqlx::types::Json<HashMap<String, String>> = row.get("event_data");
+
+        let mut event_data = HashMap::new();
+        for (key, value) in event_data_raw.0 {
+            let event_data_type = EventDataType::from_str(&value)
+                .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
+            event_data.insert(key, event_data_type);
+        }
+        // Creating the Device instance
+        let device = Device::new(
+            &id,
+            &physical_id,
+            &user_id,
+            &name,
+            EventFormat::try_from(event_format.as_str())
+                .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?,
+            event_data,
+        );
+        Ok(Some(device))
     }
 }
 

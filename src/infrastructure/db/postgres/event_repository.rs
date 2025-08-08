@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 use sqlx::{PgPool, Row};
-use uuid::Uuid;
 
 use crate::{application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError, GetEventRepository}, domain::{device::EventFormat, event::{Event, EventDataValue}}};
 
@@ -19,10 +18,10 @@ impl PostgresEventRepository {
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS events (
                 id UUID PRIMARY KEY,
-                device_id UUID NOT NULL,
+                device_physical_id TEXT NOT NULL,
                 timestamp TIMESTAMPTZ NOT NULL,
                 payload JSONB NOT NULL,
-                UNIQUE (id, device_id)
+                UNIQUE (id, device_physical_id)
             )",
         )
         .execute(&self.pool)
@@ -33,12 +32,12 @@ impl PostgresEventRepository {
 
 impl CreateEventRepository for PostgresEventRepository {
     async fn create_event(&self, evt: Event, _: &EventFormat) -> Result<(), EventRepositoryError> {
-        let query = "INSERT INTO events (id, device_id, timestamp, payload) VALUES ($1, $2, $3, $4)
-                     ON CONFLICT (id, device_id) DO NOTHING";
+        let query = "INSERT INTO events (id, device_physical_id, timestamp, payload) VALUES ($1, $2, $3, $4)
+                     ON CONFLICT (id, device_physical_id) DO NOTHING";
         let event_data: HashMap<String, Value> = evt.payload.into_iter().map(|(k, v)| (k, v.into())).collect();
         sqlx::query(query)
             .bind(evt.id)
-            .bind(evt.device_id)
+            .bind(evt.device_physical_id)
             .bind(evt.timestamp)
             .bind(sqlx::types::Json::from(event_data))
             .execute(&self.pool)
@@ -50,10 +49,10 @@ impl CreateEventRepository for PostgresEventRepository {
 }
 
 impl GetEventRepository for PostgresEventRepository {
-    async fn get_events(&self, uid: &Uuid) -> Result<Vec<Event>, EventRepositoryError> {
-        let query = "SELECT id, device_id, timestamp, payload FROM events WHERE device_id = $1";
+    async fn get_events(&self, device_physical_id: &str) -> Result<Vec<Event>, EventRepositoryError> {
+        let query = "SELECT id, device_physical_id, timestamp, payload FROM events WHERE device_physical_id = $1";
         let rows = sqlx::query(query)
-            .bind(uid)
+            .bind(device_physical_id)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| EventRepositoryError::RepositoryError(e.to_string()))?;
@@ -67,7 +66,7 @@ impl GetEventRepository for PostgresEventRepository {
             }
             Ok(Event {
                 id: row.get("id"),
-                device_id: row.get("device_id"),
+                device_physical_id: row.get("device_physical_id"),
                 timestamp: row.get("timestamp"),
                 payload,
             })

@@ -14,6 +14,7 @@ pub struct ReqwestDeviceRepository {
     base_url: String,
     create_path: String,
     get_path: String,
+    get_by_physical_id_path: String,
     update_path: String,
     delete_path: String,
 }
@@ -23,6 +24,7 @@ impl ReqwestDeviceRepository {
         base_url: &str,
         create_path: &str,
         get_path: &str,
+        get_by_physical_id_path: &str,
         update_path: &str,
         delete_path: &str,
     ) -> Self {
@@ -30,6 +32,7 @@ impl ReqwestDeviceRepository {
             base_url: base_url.to_string(),
             create_path: create_path.to_string(),
             get_path: get_path.to_string(),
+            get_by_physical_id_path: get_by_physical_id_path.to_string(),
             update_path: update_path.to_string(),
             delete_path: delete_path.to_string(),
         };
@@ -109,6 +112,29 @@ impl GetDeviceRepository for ReqwestDeviceRepository {
                 devices.push(device);
             }
             Ok(devices)
+        } else {
+            Err(DeviceRepositoryError::InternalError(
+                res.status().to_string(),
+            ))
+        }
+    }
+    
+    async fn get_by_physical_id(&self, physical_id: &str) -> Result<Option<Device>, DeviceRepositoryError> {
+        let client = reqwest::Client::new();
+        let url = format!("{}{}/{}", self.base_url, self.get_by_physical_id_path, physical_id.to_string());
+        let res = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
+
+        if res.status().is_success() {
+            let device_to_send: DeviceToSend = res
+                .json()
+                .await
+                .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
+            let device = Device::try_from(device_to_send)?;
+            Ok(Some(device))
         } else {
             Err(DeviceRepositoryError::InternalError(
                 res.status().to_string(),

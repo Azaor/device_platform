@@ -9,7 +9,7 @@ use tower_http::trace::TraceLayer;
 use crate::{
     application::ports::app::{AppInbound, AppOutbound}, infrastructure::http::axum::{
         device_handlers::{
-            create_device_handler, delete_device_handler, get_device_handler, get_devices_handler, update_device_handler
+            create_device_handler, delete_device_handler, get_device_by_physical_id, get_device_handler, get_devices_handler, update_device_handler
         },
         device_state_handlers::get_device_state_handler,
         events_handlers::{create_event_handler, get_event_handler},
@@ -35,6 +35,7 @@ impl AppInbound for AxumAppInbound {
                     .delete(delete_device_handler)
                     .post(update_device_handler),
             )
+            .route("/physical/{device_physical_id}", get(get_device_by_physical_id))
             .route("/device_states/{device_id}", get(get_device_state_handler))
             .route(
                 "/events/{device_id}",

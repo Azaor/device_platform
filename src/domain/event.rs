@@ -8,7 +8,7 @@ use crate::domain::device::{Device, EventDataType, EventFormatError};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Event {
     pub id: Uuid,
-    pub device_id: Uuid,
+    pub device_physical_id: String,
     pub timestamp: DateTime<Utc>,
     pub payload: HashMap<String, EventDataValue>,
 }
@@ -16,17 +16,15 @@ pub struct Event {
 impl Hash for Event {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
-        self.device_id.hash(state);
+        self.device_physical_id.hash(state);
         self.timestamp.hash(state);
     }
 }
 impl Event {
-    pub fn new(device_id: Uuid, timestamp: &DateTime<Utc>, payload: HashMap<String, EventDataValue>) -> Self{
-        let id = Uuid::new_v4();
-        let device_id = device_id.clone();
+    pub fn new(device_physical_id: Uuid, timestamp: &DateTime<Utc>, payload: HashMap<String, EventDataValue>) -> Self{
         return Self {
-            id,
-            device_id,
+            id: Uuid::new_v4(),
+            device_physical_id: device_physical_id.to_string(),
             timestamp: *timestamp,
             payload,
         };
@@ -47,11 +45,9 @@ impl Event {
                 return Err(EventFormatError::UnsupportedFormat(format!("Invalid value for key {}, {} expected", &key, &data_type.to_string())));
             }
         }
-        let id = Uuid::new_v4();
-        let device_id = device.id().clone();
         return Ok(Self {
-            id,
-            device_id,
+            id: Uuid::new_v4(),
+            device_physical_id: device.physical_id().to_owned(),
             timestamp: *timestamp,
             payload: payload_received,
         });

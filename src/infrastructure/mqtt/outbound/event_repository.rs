@@ -28,7 +28,7 @@ impl CreateEventRepository for MqttEventRepository {
         event_format: &EventFormat,
     ) -> Result<(), EventRepositoryError> {
         let payload = mqtt_messages::CreateEventPayload {
-            device_id: event.device_id.to_string(),
+            device_physical_id: event.device_physical_id.to_string(),
             timestamp: event.timestamp.to_rfc3339(),
             event_data: EventFormat::encode_event(event_format, event.payload)?,
         };

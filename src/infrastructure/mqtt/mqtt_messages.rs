@@ -42,7 +42,7 @@ pub struct DeleteDevicePayload {
 
 #[derive(Serialize, Deserialize)]
 pub struct CreateEventPayload {
-    pub device_id: String,
+    pub device_physical_id: String,
     pub timestamp: String,
     pub event_data: String,
 }

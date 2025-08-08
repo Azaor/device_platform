@@ -25,9 +25,9 @@ impl<C: CreateEventRepository, G: GetEventRepository> EventService for ManageEve
         Ok(())
     }
 
-    async fn get_events(&self, device_id: &uuid::Uuid) -> Result<Vec<Event>, EventServiceError> {
+    async fn get_events(&self, device_physical_id: &str) -> Result<Vec<Event>, EventServiceError> {
         let mut result = Vec::new();
-        match self.get_repo.get_events(device_id).await {
+        match self.get_repo.get_events(device_physical_id).await {
             Ok(events) => result.push(events),
             Err(EventRepositoryError::RepositoryError(msg)) => {
                 return Err(EventServiceError::InternalError(msg));

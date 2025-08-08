@@ -8,7 +8,7 @@ pub enum EventRepositoryError {
 }
 
 pub trait GetEventRepository: Send + Sync {
-    fn get_events(&self, device_id: &Uuid) -> impl Future<Output = Result<Vec<Event>, EventRepositoryError>> + Send;
+    fn get_events(&self, device_physical_id: &str) -> impl Future<Output = Result<Vec<Event>, EventRepositoryError>> + Send;
 }
 
 pub trait CreateEventRepository: Send + Sync {

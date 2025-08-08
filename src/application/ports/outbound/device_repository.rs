@@ -18,6 +18,7 @@ pub trait DeviceRepository: Send + Sync {
 pub trait GetDeviceRepository: Send + Sync {
     fn get_by_id(&self, id: Uuid) -> impl Future<Output = Result<Option<Device>, DeviceRepositoryError>> + Send;
     fn get_by_user_id(&self, user_id: Uuid) -> impl Future<Output = Result<Vec<Device>, DeviceRepositoryError>> + Send;
+    fn get_by_physical_id(&self, physical_id: &str) -> impl Future<Output = Result<Option<Device>, DeviceRepositoryError>> + Send;
 }
 
 pub trait CreateDeviceRepository: Send + Sync {
