@@ -29,3 +29,9 @@ run-egui-i-client-o:
 
 build-egui-i-client-o:
 	cargo build --no-default-features --features="egui_inbound mqtt_client_outbound" --release
+
+run-serial-i-pg-o:
+	cargo run --no-default-features --features="serial_inbound postgres_outbound"
+
+run-serial-i-mqtt-o:
+	cargo run --no-default-features --features="serial_inbound mqtt_client_outbound"

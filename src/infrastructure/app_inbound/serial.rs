@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::io;
 use tracing::warn;
 
-use crate::{application::ports::app::{AppInbound, AppOutbound}};
+use crate::application::ports::app::{AppInbound, AppOutbound};
 use crate::infrastructure::serial::inbound::handle_event::handle_event;
 pub struct SerialAppInbound {
     port_name: String,
@@ -40,30 +40,44 @@ impl AppInbound for SerialAppInbound {
             .map_err(|e| format!("Failed to open serial port: {}", e))?;
 
         let mut buffer: Vec<u8> = vec![0; 1024];
+        let mut message_to_process: Vec<u8> = vec![];
         loop {
             match port.read(buffer.as_mut_slice()) {
-                Ok(bytes_read) => {
-                    let data = &buffer[..bytes_read];
-                    let splitted_data = &data.split(|v| v == &59u8).collect::<Vec<&[u8]>>();
-                    let id = match splitted_data.get(0) {
-                        Some(id) => String::from_utf8_lossy(id).to_string(),
-                        None => {
-                            warn!("Received invalid data, no ID found : {:?}", data);
-                            continue
+                Ok(bytes_read) if bytes_read > 0 => {
+                    message_to_process.extend_from_slice(&buffer[..bytes_read]);
+
+                    while let Some(pos) = message_to_process.iter().position(|&b| b == b'\n') {
+                        let mut line = message_to_process.drain(..pos).collect::<Vec<u8>>();
+                        // Remove the newline character
+                        message_to_process.drain(..1);
+
+                        if line.last() == Some(&b'\r') {
+                            line.pop();
                         }
-                    };
-                    let payload: String = match splitted_data.get(1) {
-                        Some(payload) => String::from_utf8_lossy(payload).to_string(),
-                        None => {
-                            warn!("Received invalid data, no ID found : {:?}", data);
-                            continue
-                        }
-                    };
-                    handle_event(outbound.clone(), &id, &payload).await;
+                        let line_str = String::from_utf8_lossy(&line);
+
+                        let splitted_data: Vec<&str> = line_str.split(";").collect();
+                        let id = match splitted_data.get(0) {
+                            Some(id) => id.to_string(),
+                            None => {
+                                warn!("Received invalid data, no ID found : {:?}", line_str);
+                                continue;
+                            }
+                        };
+                        let payload: String = match splitted_data.get(1) {
+                            Some(payload) => payload.to_string(),
+                            None => {
+                                warn!("Received invalid data, no ID found : {:?}", line_str);
+                                continue;
+                            }
+                        };
+                        handle_event(outbound.clone(), &id, &payload).await;
+                    }
                 }
-                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
-                    
+                Ok(_) => {
+                    // Rien lu, on continue
                 }
+                Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {}
                 Err(e) => {
                     eprintln!("Erreur: {:?}", e);
                     break;

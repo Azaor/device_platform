@@ -21,16 +21,17 @@ impl Hash for Event {
     }
 }
 impl Event {
-    pub fn new(device_physical_id: Uuid, timestamp: &DateTime<Utc>, payload: HashMap<String, EventDataValue>) -> Self{
+    pub fn new(device_physical_id: String, timestamp: &DateTime<Utc>, payload: HashMap<String, EventDataValue>) -> Self{
         return Self {
             id: Uuid::new_v4(),
-            device_physical_id: device_physical_id.to_string(),
+            device_physical_id,
             timestamp: *timestamp,
             payload,
         };
     }
     pub fn new_checked(device: &Device, timestamp: &DateTime<Utc>, payload: &[u8]) -> Result<Self, EventFormatError> {
         let payload_received = device.event_format().decode_event(&payload)?;
+        println!("Received payload: {:?}", payload_received);
         // iterate over the device's event_data to ensure all keys in payload are valid
         for (key, data_type) in device.event_data().clone().into_iter() {
             if !payload_received.contains_key(&key) {

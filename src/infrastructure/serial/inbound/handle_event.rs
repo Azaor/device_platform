@@ -2,18 +2,10 @@ use std::collections::HashMap;
 
 use chrono::Utc;
 use tracing::{trace, warn};
-use uuid::Uuid;
 
-use crate::{application::ports::{app::AppOutbound, inbound::event_service::{self, EventService}}, domain::{device::EventFormat, event::{Event, EventDataValue}}};
+use crate::{application::ports::{app::AppOutbound, inbound::event_service::{EventService}}, domain::{device::EventFormat, event::{Event, EventDataValue}}};
 
 pub async fn handle_event<AO: AppOutbound + 'static>(app_outbound: AO, device_id: &str, payload: &str) {
-    let device_id = match Uuid::parse_str(device_id) {
-        Ok(id) => id,
-        Err(_) => {
-            warn!("Invalid device ID: {}", device_id);
-            return;
-        }
-    };
 
     let timestamp = Utc::now();
     let event_data: Vec<&str> = payload.split(',').collect();
@@ -40,7 +32,7 @@ pub async fn handle_event<AO: AppOutbound + 'static>(app_outbound: AO, device_id
         }
     }
 
-    let event = Event::new(device_id, &timestamp, values);
+    let event = Event::new(device_id.to_string(), &timestamp, values);
     let event_service = app_outbound.get_event_service();
     match event_service.handle_event(event, &EventFormat::Json).await {
         Ok(_) => trace!("Event saved successfully for device ID: {}", device_id),

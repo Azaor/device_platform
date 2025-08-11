@@ -4,9 +4,10 @@ pub mod managers;
 pub mod widgets;
 
 #[derive(Default, Debug, Eq, PartialEq, Clone)]
-pub enum LoadingStatus {
+pub enum LoadingStatus<T> {
     #[default]
     NotStarted,
-    InProgress,
+    InProgress(Option<T>),
     Failed(String),
+    Success(T),
 }
