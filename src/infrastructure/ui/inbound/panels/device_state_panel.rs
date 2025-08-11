@@ -27,7 +27,6 @@ pub fn display_device_state_panel<AO: AppOutbound + 'static>(
     let device_states_lock = try_lock_until_success(&device_states_mtx);
     match device_states_lock.clone() {
         LoadingStatus::Success(device_states) => {
-            println!("Device states loaded");
             display_cards(ui, device_states);
         }
         LoadingStatus::InProgress(Some(device_states)) => {
@@ -45,6 +44,7 @@ pub fn display_device_state_panel<AO: AppOutbound + 'static>(
     };
     drop(device_states_lock);
     if must_refresh || should_load {
+        println!("Device states loaded");
         let _ = device_state_manager.load_device_state(user_id, outbound);
     }
 }
@@ -54,7 +54,7 @@ fn display_cards(ui: &mut egui::Ui, device_states: HashMap<Uuid, DisplayableDevi
         ui.horizontal_top(|ui| {
             for (_, device_state) in device_states {
                 // Limiter la largeur de chaque carte
-                let card_size = egui::vec2(200.0, 150.0); // largeur x hauteur approx
+                let card_size = egui::vec2(400.0, 300.0); // largeur x hauteur approx
 
                 ui.allocate_ui_with_layout(
                     card_size,
@@ -85,7 +85,7 @@ fn display_cards(ui: &mut egui::Ui, device_states: HashMap<Uuid, DisplayableDevi
                                         for (key, value) in device_state_values {
                                             ui.label(format!("{}:", key.to_uppercase()));
                                             if let EventDataValue::Number(num) = value {
-                                                gauge(ui, num, 0, 50, Vec2::new(100.0, 20.0));
+                                                gauge(ui, num, 0, 50, Vec2::new(250.0, 50.0));
                                             }
                                         }
                                         ui.label(format!(

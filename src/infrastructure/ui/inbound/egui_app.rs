@@ -34,8 +34,7 @@ impl<AO: AppOutbound> EguiApp<AO> {
 
 impl<AO: AppOutbound + 'static> eframe::App for EguiApp<AO> {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        println!("repaint: {:?}", self.last_repaint.elapsed());
-        ctx.request_repaint_after(Duration::from_secs(1));
+        ctx.request_repaint_after(Duration::from_millis(100));
         let mut must_refresh = false;
         if self.last_repaint.elapsed().as_secs() > 1 {
             self.last_repaint = std::time::Instant::now();
