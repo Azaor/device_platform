@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use rumqttc::{AsyncClient};
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::device_repository::{CreateDeviceRepository, DeleteDeviceRepository, DeviceRepositoryError, UpdateDeviceRepository}, domain::device::Device, infrastructure::mqtt::mqtt_messages::{self, MqttActionType}};
+use crate::{application::ports::outbound::device_repository::{CreateDeviceRepository, DeleteDeviceRepository, DeviceRepositoryError, UpdateDeviceRepository}, domain::device::Device, infrastructure::mqtt::mqtt_messages::{self, MqttActionType, MqttEventEmittable}};
 
 #[derive(Debug)]
 pub struct MqttDeviceRepository {
@@ -18,7 +20,8 @@ impl MqttDeviceRepository {
 
 impl CreateDeviceRepository for MqttDeviceRepository {
     async fn create(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
-        let event_data = match serde_json::to_string(&device.event_data()) {
+        let events_serialized: HashMap<String, MqttEventEmittable> = device.events().iter().map(|(k, v)| (k.to_string(), MqttEventEmittable::from(v))).collect();
+        let events = match serde_json::to_string(&events_serialized) {
             Ok(r) => r,
             Err(e) => {
                 return Err(DeviceRepositoryError::InternalError(e.to_string()))
@@ -29,8 +32,7 @@ impl CreateDeviceRepository for MqttDeviceRepository {
             physical_id: device.physical_id().to_string(),
             user_id: device.user_id().to_string(),
             name: device.name().to_string(),
-            event_format: device.event_format().to_string(),
-            event_data: event_data,
+            events: events,
         };
 
         let message = match mqtt_messages::payload_to_mqtt_message(mqtt_payload, MqttActionType::Create) {
@@ -58,7 +60,8 @@ impl CreateDeviceRepository for MqttDeviceRepository {
 
 impl UpdateDeviceRepository for MqttDeviceRepository {
     async fn update(&self, device: &Device) -> Result<(), DeviceRepositoryError> {
-        let event_data = match serde_json::to_string(&device.event_data()) {
+        let events_serialized: HashMap<String, MqttEventEmittable> = device.events().iter().map(|(k, v)| (k.to_string(), MqttEventEmittable::from(v))).collect();
+        let events = match serde_json::to_string(&events_serialized) {
             Ok(r) => r,
             Err(e) => {
                 return Err(DeviceRepositoryError::InternalError(e.to_string()))
@@ -67,9 +70,9 @@ impl UpdateDeviceRepository for MqttDeviceRepository {
         let payload = mqtt_messages::UpdateDevicePayload {
             id: device.id().to_string(),
             user_id: device.user_id().to_string(),
+            physical_id: device.physical_id().to_string(),
             name: device.name().to_string(),
-            event_format: device.event_format().to_string(),
-            event_data: event_data,
+            events
         };
 
         let message = match mqtt_messages::payload_to_mqtt_message(payload, MqttActionType::Update) {

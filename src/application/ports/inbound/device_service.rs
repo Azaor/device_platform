@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use uuid::Uuid;
 
-use crate::domain::{device::{Device, EventDataType}};
+use crate::domain::device::{Device, EventEmittable};
 
 pub enum DeviceServiceError {
     NotFound,
@@ -31,7 +31,8 @@ pub trait DeviceService {
     async fn update_device(
         &self,
         id: Uuid,
+        physical_id: Option<String>,
         name: Option<String>,
-        metadata: Option<Vec<(String, EventDataType)>>,
+        event: Option<HashMap<String, EventEmittable>>,
     ) -> Result<Device, DeviceServiceError>;
 }

@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use crate::domain::{device::{EventFormat, EventFormatError}, event::Event};
 
 pub enum EventRepositoryError {

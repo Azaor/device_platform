@@ -9,6 +9,7 @@ use crate::domain::device::{Device, EventDataType, EventFormatError};
 pub struct Event {
     pub id: Uuid,
     pub device_physical_id: String,
+    pub event_name: String,
     pub timestamp: DateTime<Utc>,
     pub payload: HashMap<String, EventDataValue>,
 }
@@ -21,19 +22,24 @@ impl Hash for Event {
     }
 }
 impl Event {
-    pub fn new(device_physical_id: String, timestamp: &DateTime<Utc>, payload: HashMap<String, EventDataValue>) -> Self{
+    pub fn new(device_physical_id: String, event_name: &str, timestamp: &DateTime<Utc>, payload: HashMap<String, EventDataValue>) -> Self{
         return Self {
             id: Uuid::new_v4(),
             device_physical_id,
+            event_name: event_name.to_string(),
             timestamp: *timestamp,
             payload,
         };
     }
-    pub fn new_checked(device: &Device, timestamp: &DateTime<Utc>, payload: &[u8]) -> Result<Self, EventFormatError> {
-        let payload_received = device.event_format().decode_event(&payload)?;
+    pub fn new_checked(device: &Device, timestamp: &DateTime<Utc>, event_name: &str, payload: &[u8]) -> Result<Self, EventFormatError> {
+        let event_concerned = match device.events().get(event_name) {
+            Some(evt) => evt,
+            None => return Err(EventFormatError::UnsupportedFormat(format!("Event '{event_name}' not found in device events")))
+        };
+        let payload_received = event_concerned.format().decode_event(&payload)?;
         println!("Received payload: {:?}", payload_received);
         // iterate over the device's event_data to ensure all keys in payload are valid
-        for (key, data_type) in device.event_data().clone().into_iter() {
+        for (key, data_type) in event_concerned.payload().clone().into_iter() {
             if !payload_received.contains_key(&key) {
                 return Err(EventFormatError::UnsupportedFormat(format!("Key '{}' not found in payload", key)));
             }
@@ -49,6 +55,7 @@ impl Event {
         return Ok(Self {
             id: Uuid::new_v4(),
             device_physical_id: device.physical_id().to_owned(),
+            event_name: event_name.to_string(),
             timestamp: *timestamp,
             payload: payload_received,
         });

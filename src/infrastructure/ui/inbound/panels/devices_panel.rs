@@ -61,10 +61,13 @@ fn display_cards(ui: &mut egui::Ui, devices: Vec<Device>) {
                             .show(ui, |ui| {
                                 ui.vertical(|ui| {
                                     ui.heading(device.name());
-                                    ui.separator();
                                     ui.label(format!("🔢 ID : {}", device.id()));
-                                    ui.label(format!("📦 Données : {:?}", device.event_data()));
-                                    ui.label(format!("🧾 Format : {:?}", device.event_format()));
+                                    ui.separator();
+                                    for (key, value) in device.events() {
+                                        ui.label(format!("Event: {key}"));
+                                        ui.label(format!("- 📦 Données : {:?}", value.payload()));
+                                        ui.label(format!("- 🧾 Format : {:?}", value.format()));
+                                    }
                                 });
                             });
                     },

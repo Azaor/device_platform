@@ -1,4 +1,4 @@
-use std::{ sync::Arc};
+use std::{ collections::HashMap, sync::Arc};
 
 use uuid::Uuid;
 
@@ -10,7 +10,7 @@ use crate::{
             GetDeviceRepository, UpdateDeviceRepository,
         },
     },
-    domain::{device::{Device, EventDataType}},
+    domain::device::{Device, EventEmittable},
 };
 
 #[derive(Debug)]
@@ -73,8 +73,9 @@ impl<
     async fn update_device(
         &self,
         id: Uuid,
+        physical_id: Option<String>,
         name: Option<String>,
-        event_data_raw: Option<Vec<(String, EventDataType)>>,
+        opt_events: Option<HashMap<String, EventEmittable>>,
     ) -> Result<Device, DeviceServiceError> {
         let mut device = match self.get_repo.get_by_id(id).await {
             Ok(Some(device)) => device,
@@ -86,11 +87,14 @@ impl<
             Err(DeviceRepositoryError::Conflict) => return Err(DeviceServiceError::InternalError(format!("Unexpected conflict error while getting device"))), // Catch-all for any other errors
         };
 
+        if let Some(physical_id) = physical_id {
+            device.set_physical_id(&physical_id)
+        }
         if let Some(name) = name {
             device.set_name(&name);
         }
-        if let Some(event_data) = event_data_raw {
-            device.set_event_data(event_data.into_iter().collect());
+        if let Some(events) = opt_events {
+            device.set_events(events.into_iter().collect());
         }
 
         match self.update_repo.update(&device).await {

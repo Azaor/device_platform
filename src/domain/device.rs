@@ -13,19 +13,21 @@ pub struct Device {
     physical_id: String,
     user_id: Uuid,
     name: String,
-    event_format: EventFormat,
-    event_data: HashMap<String, EventDataType>,
+    events: HashMap<String, EventEmittable>,
 }
 
 impl Device {
-    pub fn new(id: &Uuid, physical_id: &str, user_id: &Uuid, name: &str, event_format: EventFormat, event_data: HashMap<String, EventDataType>) -> Self {
-        return Self { id: id.clone(), physical_id: physical_id.to_string(), user_id: user_id.clone(), name: name.to_string(), event_format, event_data }
+    pub fn new(id: &Uuid, physical_id: &str, user_id: &Uuid, name: &str, events: HashMap<String, EventEmittable>) -> Self {
+        return Self { id: id.clone(), physical_id: physical_id.to_string(), user_id: user_id.clone(), name: name.to_string(), events }
     }
     pub fn id(&self) -> &Uuid {
         &self.id
     }
     pub fn physical_id(&self) -> &str {
         &self.physical_id
+    }
+    pub fn set_physical_id(&mut self, physical_id: &str) {
+        self.physical_id = physical_id.to_string();
     }
     pub fn user_id(&self) -> &Uuid {
         &self.user_id
@@ -36,16 +38,31 @@ impl Device {
     pub fn set_name(&mut self, name: &str) {
         self.name = name.to_string();
     }
-    pub fn event_format(&self) -> &EventFormat {
-        &self.event_format
+    pub fn events(&self) -> &HashMap<String, EventEmittable> {
+        &self.events
     }
-    pub fn event_data(&self) -> &HashMap<String, EventDataType> {
-        &self.event_data
-    }
-    pub fn set_event_data(&mut self, event_data: HashMap<String, EventDataType>) {
-        self.event_data = event_data;
+    pub fn set_events(&mut self, events: HashMap<String, EventEmittable>) {
+        self.events = events;
     }
 
+}
+
+#[derive(Debug, Clone)]
+pub struct EventEmittable {
+    format: EventFormat,
+    payload: HashMap<String, EventDataType>,
+}
+
+impl EventEmittable {
+    pub fn new(format: EventFormat, payload: HashMap<String, EventDataType>) -> Self {
+        Self { format, payload }
+    }
+    pub fn format(&self) -> &EventFormat {
+        &self.format
+    }
+    pub fn payload(&self) -> &HashMap<String, EventDataType> {
+        &self.payload
+    }
 }
 
 #[derive(Debug, Clone)]

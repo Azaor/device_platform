@@ -64,14 +64,21 @@ impl AppInbound for SerialAppInbound {
                                 continue;
                             }
                         };
-                        let payload: String = match splitted_data.get(1) {
+                        let event_name = match splitted_data.get(1) {
+                            Some(id) => id.to_string(),
+                            None => {
+                                warn!("Received invalid data, no ID found : {:?}", line_str);
+                                continue;
+                            }
+                        };
+                        let payload: String = match splitted_data.get(2) {
                             Some(payload) => payload.to_string(),
                             None => {
                                 warn!("Received invalid data, no ID found : {:?}", line_str);
                                 continue;
                             }
                         };
-                        handle_event(outbound.clone(), &id, &payload).await;
+                        handle_event(outbound.clone(), &id, &event_name, &payload).await;
                     }
                 }
                 Ok(_) => {

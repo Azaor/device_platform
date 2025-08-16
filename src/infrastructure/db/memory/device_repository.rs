@@ -40,6 +40,17 @@ impl GetDeviceRepository for InMemoryDeviceRepository {
             .collect();
         Ok(devices)
     }
+    
+    async fn get_by_physical_id(&self, physical_id: &str) -> Result<Option<Device>, DeviceRepositoryError> {
+        let map = self.store.lock().unwrap();
+        let device = map.values()
+            .find(|device| device.physical_id() == physical_id)
+            .cloned();
+        match device {
+            Some(d) => Ok(Some(d)),
+            None => Err(DeviceRepositoryError::NotFound),
+        }
+    }
 }
 
 impl UpdateDeviceRepository for InMemoryDeviceRepository {

@@ -12,7 +12,7 @@ use crate::{application::ports::{app::AppOutbound, inbound::{device_service::Dev
 #[instrument]
 pub async fn create_event_handler<AO: AppOutbound>(
     State(services): State<Arc<AO>>,
-    Path(device_physical_id) : Path<String>,
+    Path((device_physical_id, event_name)) : Path<(String, String)>,
     r: Request,
 ) -> Result<Json<EventResponse>, Response> {
     let request_body = r.into_body();
@@ -38,6 +38,7 @@ pub async fn create_event_handler<AO: AppOutbound>(
     let event = match Event::new_checked(
         &device,
         &Utc::now(),
+        &event_name,
         &body_bytes,
     ) {
         Ok(event) => event,
@@ -46,7 +47,8 @@ pub async fn create_event_handler<AO: AppOutbound>(
             return Err(ErrorResponse::from(err).into_response())
         },
     };
-    let res = match event_service.handle_event(event.clone(), &device.event_format()).await {
+    let event_concerned = device.events().get(&event_name).expect("Check done before");
+    let res = match event_service.handle_event(event.clone(), &event_concerned.format()).await {
         Ok(_) => {
             Json(EventResponse::from(event.clone()))
         },
@@ -55,7 +57,7 @@ pub async fn create_event_handler<AO: AppOutbound>(
         },
     };
     // Update the device state with the event payload
-    match device_state_service.create_device_state(device.id().clone(), event.payload).await {
+    match device_state_service.update_device_state(device.id().clone(), event.payload).await {
         Ok(_) => {
             trace!(result = "success");
             Ok(res)

@@ -1,7 +1,5 @@
 use std::fmt::{Display};
 
-use uuid::Uuid;
-
 use crate::domain::{device::EventFormat, event::Event};
 
 #[derive(Debug)]

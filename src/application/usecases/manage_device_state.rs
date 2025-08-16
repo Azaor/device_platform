@@ -50,13 +50,13 @@ impl<C: CreateDeviceStateRepository, G: GetDeviceStateRepository, U: UpdateDevic
     async fn update_device_state(&self, id: Uuid, values: HashMap<String, EventDataValue>) -> Result<DeviceState, DeviceStateServiceError> {
         let mut device_state = match self.get_repo.get_by_id(id).await {
             Ok(Some(state)) => state,
-            Ok(None) => return Err(DeviceStateServiceError::DeviceNotFound),
+            Ok(None) => return self.create_device_state(id, values).await,
             Err(DeviceStateRepositoryError::DeviceNotFound) => return Err(DeviceStateServiceError::DeviceNotFound),
             Err(DeviceStateRepositoryError::InternalError(s)) => return Err(DeviceStateServiceError::InternalError(s)),
             Err(DeviceStateRepositoryError::Conflict) => return Err(DeviceStateServiceError::AlreadyExists),
         };
 
-        device_state.values = values;
+        device_state.values.extend(values);
         device_state.last_update = chrono::Utc::now();
 
         match self.update_repo.update(&device_state).await {

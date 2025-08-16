@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{application::ports::outbound::{device_repository::DeviceRepositoryError, device_state_repository::DeviceStateRepositoryError, event_repository::EventRepositoryError}, domain::{device::{Device, EventDataType, EventFormat}, event::{Event, EventDataValue}, state::DeviceState}};
+use crate::{application::ports::outbound::{device_repository::DeviceRepositoryError, device_state_repository::DeviceStateRepositoryError, event_repository::EventRepositoryError}, domain::{device::{Device, EventDataType, EventEmittable, EventFormat}, event::{Event, EventDataValue}, state::DeviceState}};
 
 
 #[derive(Serialize, Deserialize)]
@@ -13,8 +13,7 @@ pub struct DeviceToSend {
     pub physical_id: String,
     pub user_id: String,
     pub name: String,
-    pub event_format: String,
-    pub event_data: HashMap<String, String>,
+    pub events: HashMap<String, EventEmittableToSend>,
 }
 
 impl From<Device> for DeviceToSend {
@@ -22,19 +21,17 @@ impl From<Device> for DeviceToSend {
         let device_id = device.id().to_string();
         let user_id = device.user_id().to_string();
         let name = device.name().to_string();
-        let event_format = device.event_format().to_string();
-        let event_data = device
-            .event_data()
+        let events = device
+            .events()
             .iter()
-            .map(|(key, val)| return (key.clone(), val.to_string()))
+            .map(|(key, val)| return (key.clone(), EventEmittableToSend::from(val)))
             .collect();
         DeviceToSend {
             id: device_id,
             physical_id: device.physical_id().to_string(),
             user_id,
             name,
-            event_format,
-            event_data,
+            events,
         }
     }
 }
@@ -48,21 +45,24 @@ impl TryFrom<DeviceToSend> for Device {
         let user_id = Uuid::from_str(&device_to_send.user_id)
             .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
         let name = device_to_send.name.to_string();
-        let event_format = EventFormat::try_from(device_to_send.event_format.as_str())
-            .map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
-        let mut event_data = HashMap::new();
-        for (key, val) in device_to_send.event_data.iter() {
-            let value = EventDataType::from_str(val)
-                .map_err(|e| DeviceRepositoryError::InternalError(e))?;
-            event_data.insert(key.clone(), value);
+        let mut events = HashMap::new();
+        for (key, val) in device_to_send.events.iter() {
+            let event_format = EventFormat::try_from(val.format.as_str()).map_err(|e| DeviceRepositoryError::InternalError(e.to_string()))?;
+            let mut event_payload = HashMap::new();
+            for (event_key, event_value) in val.payload.clone() {
+                let value = EventDataType::from_str(&event_value)
+                    .map_err(|e| DeviceRepositoryError::InternalError(e))?;
+                event_payload.insert(event_key, value);
+            }
+            
+            events.insert(key.clone(), EventEmittable::new(event_format, event_payload));
         }
         Ok(Device::new(
             &device_id,
             &device_to_send.physical_id,
             &user_id,
             &name,
-            event_format,
-            event_data,
+            events
         ))
     }
 }
@@ -119,6 +119,7 @@ pub struct EventToSend {
 pub struct EventToReceive {
     pub id: String,
     pub device_physical_id: String,
+    pub event_name: String,
     pub timestamp: String,
     pub payload: HashMap<String, Value>,
 }
@@ -142,8 +143,28 @@ impl TryFrom<EventToReceive> for Event {
         Ok(Event {
             id,
             device_physical_id: device_physical_id.to_string(),
+            event_name: event_to_send.event_name,
             timestamp,
             payload,
         })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EventEmittableToSend {
+    pub format: String,
+    pub payload: HashMap<String, String>,
+}
+
+impl From<&EventEmittable> for EventEmittableToSend {
+    fn from(value: &EventEmittable) -> Self {
+        EventEmittableToSend {
+            format: value.format().to_string(),
+            payload: value
+                .payload()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.to_string()))
+                .collect(),
+        }
     }
 }

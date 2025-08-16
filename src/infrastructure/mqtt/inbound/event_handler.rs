@@ -35,7 +35,7 @@ async fn handle_create_event<AO: AppOutbound + 'static>(
     event: CreateEventPayload,
     state: &AO,
 ) -> Result<(), HandlerError> {
-    let timestamp = DateTime::from_str(&event.timestamp).map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
+    let timestamp = DateTime::from_str(&event.timestamp).map_err(|_| HandlerError::ParsingError("invalid timestamp format".to_string()))?;
     let device_service = state.get_device_service();
     let event_service = state.get_event_service();
     let device_state_service = state.get_device_state_service();
@@ -43,11 +43,11 @@ async fn handle_create_event<AO: AppOutbound + 'static>(
         Some(device) => device,
         None => return Err(HandlerError::ParsingError("Device not found".to_string())), // Skip if device not found
     };
-
-    let event = Event::new_checked(&device, &timestamp, &event.event_data.as_bytes())?;
-    event_service.handle_event(event.clone(), &device.event_format()).await?;
+    let event_concerned = device.events().get(&event.device_event_name).expect("Check done before");
+    let event = Event::new_checked(&device, &timestamp, &event.device_event_name,&event.event_data.as_bytes())?;
+    event_service.handle_event(event.clone(), &event_concerned.format()).await?;
     device_state_service
-        .create_device_state(device.id().clone(), event.payload)
+        .update_device_state(device.id().clone(), event.payload)
         .await?;
     Ok(())
 }
