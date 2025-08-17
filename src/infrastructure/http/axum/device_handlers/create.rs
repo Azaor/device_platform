@@ -15,7 +15,7 @@ use crate::{
     infrastructure::http::axum::{
         device_handlers::{
             types::{CreateDeviceRequest, DeviceResponse, EventEmittableSerializable},
-            utils::{into_event_emittable, log_and_return_response},
+            utils::{into_action_emittable, into_event_emittable, log_and_return_response},
         },
         error::ErrorResponse,
     },
@@ -39,6 +39,7 @@ pub async fn create_device_handler<AO: AppOutbound>(
         }
     };
     let events = into_event_emittable(payload.events)?;
+    let actions = into_action_emittable(payload.actions)?;
 
     let device = Device::new(
         &Uuid::new_v4(),
@@ -46,6 +47,7 @@ pub async fn create_device_handler<AO: AppOutbound>(
         &payload.user_id,
         &payload.name.clone(),
         events,
+        actions
     );
     match service.create_device(&device).await {
         Ok(device) => {

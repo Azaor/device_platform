@@ -1,4 +1,7 @@
-use crate::domain::{device::{EventFormat, EventFormatError}, event::Event};
+use crate::domain::event::{
+    event::Event,
+    event_format::{EventFormat, EventFormatError},
+};
 
 pub enum EventRepositoryError {
     RepositoryError(String),
@@ -6,17 +9,26 @@ pub enum EventRepositoryError {
 }
 
 pub trait GetEventRepository: Send + Sync {
-    fn get_events(&self, device_physical_id: &str) -> impl Future<Output = Result<Vec<Event>, EventRepositoryError>> + Send;
+    fn get_events(
+        &self,
+        device_physical_id: &str,
+    ) -> impl Future<Output = Result<Vec<Event>, EventRepositoryError>> + Send;
 }
 
 pub trait CreateEventRepository: Send + Sync {
-    fn create_event(&self, event: Event, event_format: &EventFormat) -> impl Future<Output = Result<(), EventRepositoryError>> + Send;
+    fn create_event(
+        &self,
+        event: Event,
+        event_format: &EventFormat,
+    ) -> impl Future<Output = Result<(), EventRepositoryError>> + Send;
 }
 
 impl From<EventFormatError> for EventRepositoryError {
     fn from(value: EventFormatError) -> Self {
         match value {
-            EventFormatError::UnsupportedFormat(e) => EventRepositoryError::RepositoryError(format!("Unsupported format: {}", e)),
+            EventFormatError::UnsupportedFormat(e) => {
+                EventRepositoryError::RepositoryError(format!("Unsupported format: {}", e))
+            }
         }
     }
 }

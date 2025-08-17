@@ -10,7 +10,7 @@ use crate::{
             GetDeviceRepository, UpdateDeviceRepository,
         },
     },
-    domain::device::{Device, EventEmittable},
+    domain::{action::action_emittable::ActionEmittable, device::Device, event::event_emittable::EventEmittable},
 };
 
 #[derive(Debug)]
@@ -76,6 +76,7 @@ impl<
         physical_id: Option<String>,
         name: Option<String>,
         opt_events: Option<HashMap<String, EventEmittable>>,
+        opt_actions: Option<HashMap<String, ActionEmittable>>
     ) -> Result<Device, DeviceServiceError> {
         let mut device = match self.get_repo.get_by_id(id).await {
             Ok(Some(device)) => device,
@@ -96,7 +97,9 @@ impl<
         if let Some(events) = opt_events {
             device.set_events(events.into_iter().collect());
         }
-
+        if let Some(actions) = opt_actions {
+            device.set_actions(actions.into_iter().collect());
+        }
         match self.update_repo.update(&device).await {
             Ok(_) => Ok(device),
             Err(DeviceRepositoryError::Conflict) => Err(DeviceServiceError::AlreadyExists),

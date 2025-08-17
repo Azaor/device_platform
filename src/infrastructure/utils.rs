@@ -1,4 +1,4 @@
-use std::{env::VarError};
+use std::{env::VarError, sync::{Arc, Mutex, MutexGuard}};
 
 #[cfg(feature = "mqtt_outbound")]
 use rumqttc::{AsyncClient, EventLoop, MqttOptions};
@@ -53,6 +53,7 @@ pub struct MQTTConfig {
     pub device_topic: String,
     pub device_state_topic: String,
     pub event_topic: String,
+    pub action_topic: String,
 }
 
 #[cfg(feature = "mqtt")]
@@ -63,12 +64,14 @@ pub fn load_mqtt_config_from_env() -> Result<MQTTConfig, VarError> {
     let device_topic = std::env::var(format!("MQTT_DEVICE_TOPIC"))?;
     let device_state_topic = std::env::var(format!("MQTT_DEVICE_STATE_TOPIC"))?;
     let event_topic = std::env::var(format!("MQTT_EVENT_TOPIC"))?;
+    let action_topic = std::env::var(format!("MQTT_ACTION_TOPIC"))?;
     Ok(MQTTConfig {
         mqtt_url,
         mqtt_port: mqtt_port.parse().map_err(|_| VarError::NotPresent)?,
         device_topic,
         device_state_topic,
         event_topic,
+        action_topic
     })
 }
 
@@ -169,5 +172,16 @@ pub fn log_event_service_error(err: &EventServiceError) {
     match err {
         EventServiceError::InvalidInput(s) => warn!(result = "warn", details = format!("Invalid input: {}", s)),
         EventServiceError::InternalError(e) => error!(result = "error", details = format!("Internal error: {}", e)),
+    }
+}
+
+pub fn try_lock_until_success<T>(mutex: &Arc<Mutex<T>>) -> MutexGuard<'_, T> {
+    loop {
+        match mutex.lock() {
+            Ok(guard) => return guard,
+            Err(_) => {
+                mutex.clear_poison();
+            }
+        }
     }
 }

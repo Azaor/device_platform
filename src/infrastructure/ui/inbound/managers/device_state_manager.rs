@@ -8,11 +8,9 @@ use uuid::Uuid;
 
 use crate::{
     application::ports::{
-        app::{AppOutbound},
+        app::AppOutbound,
         inbound::{device_service::DeviceService, device_state_service::DeviceStateService},
-    },
-    domain::event::EventDataValue,
-    infrastructure::ui::inbound::{egui_app::try_lock_until_success, LoadingStatus},
+    }, domain::event::event_data_value::EventDataValue, infrastructure::ui::inbound::{egui_app::try_lock_until_success, LoadingStatus}
 };
 
 pub struct DeviceStateManager {

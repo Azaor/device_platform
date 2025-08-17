@@ -1,12 +1,21 @@
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 
-use crate::{application::ports::inbound::{device_service::DeviceServiceError, device_state_service::DeviceStateServiceError, event_service::EventServiceError}, domain::device::EventFormatError};
+use crate::{application::ports::inbound::{action_service::ActionServiceError, device_service::DeviceServiceError, device_state_service::DeviceStateServiceError, event_service::EventServiceError}, domain::{action::action_format::ActionFormatError, event::event_format::EventFormatError}};
 
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub status: u16,
     pub message: String,
+}
+
+impl ErrorResponse {
+    pub fn internal_error() -> ErrorResponse {
+        ErrorResponse {
+            status: 500,
+            message: "Internal server error".to_string(),
+        }
+    }
 }
 
 impl IntoResponse for ErrorResponse {
@@ -88,10 +97,36 @@ impl From<EventServiceError> for ErrorResponse {
     }
 }
 
+impl From<ActionServiceError> for ErrorResponse {
+    fn from(err: ActionServiceError) -> Self {
+        match err {
+            ActionServiceError::InternalError(val) => ErrorResponse {
+                status: 404,
+                message: format!("Action not found: {}", val.to_string()),
+            },
+            ActionServiceError::InvalidInput(val) => ErrorResponse {
+                status: 409,
+                message: format!("Invalid input: {}", val.to_string()),
+            },
+        }
+    }
+}
+
 impl From<EventFormatError> for ErrorResponse {
     fn from(err: EventFormatError) -> Self {
         match err {
             EventFormatError::UnsupportedFormat(e) => ErrorResponse {
+                status: 400,
+                message: format!("Invalid event format: {}", e),
+            },
+        }
+    }
+}
+
+impl From<ActionFormatError> for ErrorResponse {
+    fn from(err: ActionFormatError) -> Self {
+        match err {
+            ActionFormatError::UnsupportedFormat(e) => ErrorResponse {
                 status: 400,
                 message: format!("Invalid event format: {}", e),
             },

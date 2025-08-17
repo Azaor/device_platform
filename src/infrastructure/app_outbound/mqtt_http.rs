@@ -1,40 +1,41 @@
-use std::{env::VarError, sync::Arc};
-use tokio::task;
+use std::{collections::HashMap, env::VarError, str::FromStr, sync::Arc};
+use chrono::DateTime;
+use rumqttc::Packet;
+use serde_json::Value;
+use tokio::sync::Mutex;
+use tracing::error;
 
 use crate::{
     application::{
         ports::{
             app::AppOutbound,
             outbound::{
-                device_repository::{
+                action_repository::{ActionRepositoryError, HandleActionRepository}, device_repository::{
                     CreateDeviceRepository, DeleteDeviceRepository, GetDeviceRepository,
                     UpdateDeviceRepository,
-                },
-                device_state_repository::{
+                }, device_state_repository::{
                     CreateDeviceStateRepository, DeleteDeviceStateRepository,
                     GetDeviceStateRepository, UpdateDeviceStateRepository,
-                },
-                event_repository::{CreateEventRepository, GetEventRepository},
+                }, event_repository::{CreateEventRepository, GetEventRepository}
             },
         },
         usecases::{
-            manage_device::ManageDeviceService, manage_device_state::ManageDeviceStateService,
-            manage_event::ManageEventService,
+            manage_action::ManageActionService, manage_device::ManageDeviceService,
+            manage_device_state::ManageDeviceStateService, manage_event::ManageEventService,
         },
-    },
-    infrastructure::{
+    }, domain::action::{action::Action, action_format::ActionFormat}, infrastructure::{
         http::reqwest::{
             device_repository::ReqwestDeviceRepository,
             device_state_repository::ReqwestDeviceStateRepository,
             event_repository::ReqwestEventRepository,
         },
-        mqtt::outbound::{
-            device_repository::MqttDeviceRepository,
+        mqtt::{mqtt_messages::{CreateActionPayload, MqttActionType, MqttMessage}, outbound::{
+            action_repository::MqttActionRepository, device_repository::MqttDeviceRepository,
             device_state_repository::MqttDeviceStateRepository,
             event_repository::MqttEventRepository,
-        },
-        utils,
-    },
+        }},
+        utils::{self},
+    }
 };
 
 #[derive(Debug)]
@@ -56,6 +57,7 @@ pub struct MqttHttpAppOutbound {
         >,
     >,
     device_events_service: Arc<ManageEventService<MqttEventRepository, ReqwestEventRepository>>,
+    device_actions_service: Arc<ManageActionService<MqttActionRepository, LocalActionRepository>>,
 }
 
 impl Clone for MqttHttpAppOutbound {
@@ -64,6 +66,7 @@ impl Clone for MqttHttpAppOutbound {
             device_service: Arc::clone(&self.device_service),
             device_state_service: Arc::clone(&self.device_state_service),
             device_events_service: Arc::clone(&self.device_events_service),
+            device_actions_service: Arc::clone(&self.device_actions_service),
         }
     }
 }
@@ -81,13 +84,19 @@ impl MqttHttpAppOutbound {
             MqttDeviceRepository::new(mqtt_client.clone(), &mqtt_config.device_topic);
         let mqtt_device_state_repo =
             MqttDeviceStateRepository::new(mqtt_client.clone(), &mqtt_config.device_state_topic);
-        let mqtt_event_repo = MqttEventRepository::new(mqtt_client, &mqtt_config.event_topic);
+        let mqtt_event_repo =
+            MqttEventRepository::new(mqtt_client.clone(), &mqtt_config.event_topic);
+        let mqtt_action_repo =
+            MqttActionRepository::new(mqtt_client, &mqtt_config.action_topic);
+        let local_action_repo = LocalActionRepository::new();
 
         let http_device_repo = ReqwestDeviceRepository::new(
             &http_config.base_url,
             &http_config.device_create_path.unwrap_or_default(),
             &http_config.device_get_path.unwrap_or_default(),
-            &http_config.device_get_by_physical_id_path.unwrap_or_default(),
+            &http_config
+                .device_get_by_physical_id_path
+                .unwrap_or_default(),
             &http_config.device_update_path.unwrap_or_default(),
             &http_config.device_delete_path.unwrap_or_default(),
         );
@@ -107,6 +116,8 @@ impl MqttHttpAppOutbound {
         let arc_mqtt_device_repo = Arc::new(mqtt_device_repo);
         let arc_mqtt_event_repo = Arc::new(mqtt_event_repo);
         let arc_mqtt_device_state_repo = Arc::new(mqtt_device_state_repo);
+        let arc_mqtt_action_repo = Arc::new(Mutex::new(mqtt_action_repo));
+        let arc_local_action_repo = Arc::new(Mutex::new(local_action_repo));
         let arc_http_device_repo = Arc::new(http_device_repo);
         let arc_http_event_repo = Arc::new(http_event_repo);
         let arc_http_device_state_repo = Arc::new(http_device_state_repo);
@@ -126,13 +137,84 @@ impl MqttHttpAppOutbound {
             create_repo: arc_mqtt_event_repo,
             get_repo: arc_http_event_repo,
         });
-
-        task::spawn(async move { while let Ok(_) = event_loop.poll().await {} });
+        let device_actions_service = Arc::new(ManageActionService {
+            create_repo: arc_mqtt_action_repo,
+            get_repo: arc_local_action_repo.clone(),
+        });
+        let action_topic_cloned = mqtt_config.action_topic.clone();
+        let device_id_cloned = "abc".to_string();
+        tokio::task::spawn(async move {
+            while let Ok(notification) = event_loop.poll().await {
+                if let rumqttc::Event::Incoming(Packet::Publish(published)) = notification {
+                    if published.topic == format!("{}/{}", action_topic_cloned, device_id_cloned) {
+                        let data: MqttMessage<Value> =
+                            match serde_json::from_slice(&published.payload) {
+                                Ok(p) => p,
+                                Err(e) => {
+                                    error!(
+                                        result = "error",
+                                        details = format!("Invalid payload: {}", e.to_string())
+                                    );
+                                    continue;
+                                }
+                            };
+                        match data.action_type {
+                            MqttActionType::Create => {
+                                let payload: CreateActionPayload =
+                                    match serde_json::from_slice(&published.payload) {
+                                        Ok(p) => p,
+                                        Err(e) => {
+                                            error!(
+                                                result = "error",
+                                                details =
+                                                    format!("Invalid payload: {}", e.to_string())
+                                            );
+                                            continue;
+                                        }
+                                    };
+                                let timestamp = match DateTime::from_str(&payload.timestamp) {
+                                    Ok(t) => t,
+                                    Err(_) => {
+                                        error!(
+                                            result = "error",
+                                            details = "invalid timestamp format".to_string()
+                                        );
+                                        continue;
+                                    }
+                                };
+                                let action_data = match ActionFormat::Json
+                                    .decode_action(payload.action_data.as_bytes())
+                                {
+                                    Ok(a) => a,
+                                    Err(_) => {
+                                        error!(
+                                            result = "error",
+                                            details = "invalid timestamp format".to_string()
+                                        );
+                                        continue;
+                                    }
+                                };
+                                let action = Action::new(
+                                    payload.device_id.clone(),
+                                    &payload.action_data,
+                                    &timestamp,
+                                    action_data,
+                                );
+                                let mut local_action_repo = arc_local_action_repo.lock().await;
+                                local_action_repo.add_pending_action(&payload.device_id, action).await;
+                            }
+                            MqttActionType::Delete | MqttActionType::Update => {}
+                        }
+                    }
+                }
+            }
+        });
 
         Ok(MqttHttpAppOutbound {
             device_service,
             device_state_service,
             device_events_service,
+            device_actions_service,
         })
     }
 }
@@ -168,5 +250,46 @@ impl AppOutbound for MqttHttpAppOutbound {
         >,
     > {
         &self.device_service
+    }
+
+    fn get_action_service(
+        &self,
+    ) -> &Arc<
+        crate::application::usecases::manage_action::ManageActionService<
+            impl crate::application::ports::outbound::action_repository::CreateActionRepository,
+            impl crate::application::ports::outbound::action_repository::HandleActionRepository,
+        >,
+    > {
+        &self.device_actions_service
+    }
+}
+
+#[derive(Debug)]
+struct LocalActionRepository {
+    pending_actions: HashMap<String, Vec<Action>>
+}
+
+impl LocalActionRepository {
+    fn new() -> Self {
+        Self {
+            pending_actions: HashMap::new()
+        }
+    }
+    async fn add_pending_action(&mut self, device_id: &str, action: Action) {
+        self.pending_actions
+            .entry(device_id.to_string())
+            .or_insert_with(Vec::new)
+            .push(action);
+
+    }
+}
+
+impl HandleActionRepository for LocalActionRepository {
+    async fn get_actions(
+        &mut self,
+        device_id: &str,
+    ) -> Result<Vec<Action>, ActionRepositoryError> {
+        let actions = self.pending_actions.remove(device_id).unwrap_or_default();
+        Ok(actions)
     }
 }

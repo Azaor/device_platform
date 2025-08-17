@@ -11,7 +11,7 @@ use crate::{
         inbound::error::HandlerError,
         mqtt_messages::{
             CreateDevicePayload, DeleteDevicePayload, MqttActionType, MqttMessage,
-            UpdateDevicePayload, deserialize_event,
+            UpdateDevicePayload, deserialize_actions, deserialize_events,
         },
     },
 };
@@ -50,7 +50,8 @@ pub async fn handle_create_device<AO: AppOutbound + 'static>(
     state: &AO,
 ) -> Result<(), HandlerError> {
     let device_service = state.get_device_service();
-    let events = deserialize_event(&device.events)?;
+    let events = deserialize_events(&device.events)?;
+    let actions = deserialize_actions(&device.actions)?;
     let device = Device::new(
         &Uuid::from_str(&device.id)
             .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?,
@@ -59,6 +60,7 @@ pub async fn handle_create_device<AO: AppOutbound + 'static>(
             .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?,
         &device.name,
         events,
+        actions,
     );
     device_service.create_device(&device).await?;
     Ok(())
@@ -82,13 +84,15 @@ pub async fn handle_update_device<AO: AppOutbound + 'static>(
     let device_service = state.get_device_service();
     let device_id = Uuid::from_str(&device.id)
         .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
-    let events = deserialize_event(&device.events)?;
+    let events = deserialize_events(&device.events)?;
+    let actions = deserialize_actions(&device.actions)?;
     device_service
         .update_device(
             device_id,
             Some(device.physical_id),
             Some(device.name),
             Some(events),
+            Some(actions),
         )
         .await?;
     Ok(())

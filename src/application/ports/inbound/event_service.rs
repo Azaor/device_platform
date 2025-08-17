@@ -1,6 +1,6 @@
-use std::fmt::{Display};
+use std::fmt::Display;
 
-use crate::domain::{device::EventFormat, event::Event};
+use crate::domain::event::{event::Event, event_format::EventFormat};
 
 #[derive(Debug)]
 pub enum EventServiceError {
@@ -18,6 +18,10 @@ impl Display for EventServiceError {
 }
 
 pub trait EventService {
-    async fn handle_event(&self, event: Event, event_format: &EventFormat) -> Result<(), EventServiceError>;
+    async fn handle_event(
+        &self,
+        event: Event,
+        event_format: &EventFormat,
+    ) -> Result<(), EventServiceError>;
     async fn get_events(&self, device_physical_id: &str) -> Result<Vec<Event>, EventServiceError>;
 }

@@ -2,7 +2,7 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
-use crate::domain::event::EventDataValue;
+use crate::domain::event::event_data_value::EventDataValue;
 
 #[derive(Debug, Clone)]
 pub struct DeviceState {

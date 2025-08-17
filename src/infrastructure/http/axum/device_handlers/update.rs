@@ -14,7 +14,7 @@ use crate::{
     infrastructure::http::axum::{
         device_handlers::{
             types::{DeviceResponse, EventEmittableSerializable, UpdateDeviceRequest},
-            utils::{into_event_emittable, log_and_return_response},
+            utils::{into_action_emittable, into_event_emittable, log_and_return_response},
         },
         error::ErrorResponse,
     },
@@ -54,7 +54,8 @@ pub async fn update_device_handler<AO: AppOutbound>(
         }
     };
     let events = payload.events.map(into_event_emittable).transpose()?;
-    match service.update_device(id, payload.physical_id, payload.name, events).await {
+    let actions = payload.actions.map(into_action_emittable).transpose()?;
+    match service.update_device(id, payload.physical_id, payload.name, events, actions).await {
         // convert event_data to HashMap<String, String>
         Ok(device) => {
             let events: HashMap<String, EventEmittableSerializable> = device

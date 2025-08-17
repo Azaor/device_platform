@@ -4,14 +4,9 @@ use egui::{RichText, Vec2};
 use uuid::Uuid;
 
 use crate::{
-    application::ports::app::AppOutbound,
-    domain::event::EventDataValue,
-    infrastructure::ui::inbound::{
-        LoadingStatus,
-        egui_app::try_lock_until_success,
-        managers::device_state_manager::{DeviceStateManager, DisplayableDeviceState},
-        widgets::gauge::gauge,
-    },
+    application::ports::app::AppOutbound, domain::event::event_data_value::EventDataValue, infrastructure::ui::inbound::{
+        egui_app::try_lock_until_success, managers::device_state_manager::{DeviceStateManager, DisplayableDeviceState}, widgets::gauge::gauge, LoadingStatus
+    }
 };
 
 pub fn display_device_state_panel<AO: AppOutbound + 'static>(

@@ -5,7 +5,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
-    application::ports::{app::AppOutbound, inbound::device_state_service::DeviceStateService}, domain::event::EventDataValue, infrastructure::mqtt::{
+    application::ports::{app::AppOutbound, inbound::device_state_service::DeviceStateService}, domain::event::event_data_value::EventDataValue, infrastructure::mqtt::{
         inbound::error::HandlerError,
         mqtt_messages::{
             CreateDeviceStatePayload, DeleteDeviceStatePayload, MqttActionType, MqttMessage,
@@ -50,8 +50,10 @@ async fn handle_create_device_state<AO: AppOutbound + 'static>(
     let device_id = Uuid::from_str(&device_state.device_id)
         .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
     let mut values = HashMap::new();
-    for (k, v) in device_state.values{
-        let val = EventDataValue::try_from(v).map_err(|_| HandlerError::ParsingError(format!("Invalid data received for key {}", k)))?;
+    for (k, v) in device_state.values {
+        let val = EventDataValue::try_from(v).map_err(|_| {
+            HandlerError::ParsingError(format!("Invalid data received for key {}", k))
+        })?;
         values.insert(k, val);
     }
     device_state_service
@@ -80,8 +82,10 @@ async fn handle_update_device_state<AO: AppOutbound + 'static>(
     let device_id = Uuid::from_str(&device_state.device_id)
         .map_err(|_| HandlerError::ParsingError("invalid Uuid format".to_string()))?;
     let mut values = HashMap::new();
-    for (k, v) in device_state.values{
-        let val = EventDataValue::try_from(v).map_err(|_| HandlerError::ParsingError(format!("Invalid data received for key {}", k)))?;
+    for (k, v) in device_state.values {
+        let val = EventDataValue::try_from(v).map_err(|_| {
+            HandlerError::ParsingError(format!("Invalid data received for key {}", k))
+        })?;
         values.insert(k, val);
     }
     device_state_service

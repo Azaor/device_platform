@@ -1,11 +1,7 @@
 use crate::{
     application::ports::outbound::event_repository::{
         CreateEventRepository, EventRepositoryError, GetEventRepository,
-    },
-    domain::{
-        device::{EventFormat, EventFormatError},
-        event::Event,
-    }, infrastructure::http::reqwest::types::{EventToReceive, EventToSend},
+    }, domain::event::{event::Event, event_format::{EventFormat, EventFormatError}}, infrastructure::http::reqwest::types::{EventToReceive, EventToSend}
 };
 
 #[derive(Debug)]

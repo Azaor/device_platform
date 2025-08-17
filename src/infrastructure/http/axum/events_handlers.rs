@@ -7,7 +7,7 @@ use serde_json::Value;
 use tracing::{error, instrument, trace, warn};
 use uuid::Uuid;
 
-use crate::{application::ports::{app::AppOutbound, inbound::{device_service::DeviceService, device_state_service::DeviceStateService, event_service::{EventService, EventServiceError}}}, domain::event::Event, infrastructure::http::axum::{device_state_handlers, error::ErrorResponse}};
+use crate::{application::ports::{app::AppOutbound, inbound::{device_service::DeviceService, device_state_service::DeviceStateService, event_service::{EventService, EventServiceError}}}, domain::event::event::Event, infrastructure::http::axum::{device_state_handlers, error::ErrorResponse}};
 
 #[instrument]
 pub async fn create_event_handler<AO: AppOutbound>(

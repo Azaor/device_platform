@@ -1,11 +1,7 @@
-
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use uuid::Uuid;
-use std::fmt::Display;
 use std::{collections::HashMap};
 
-use crate::domain::event::EventDataValue;
+use crate::domain::{action::action_emittable::ActionEmittable, event::event_emittable::EventEmittable};
 
 #[derive(Debug, Clone)]
 pub struct Device {
@@ -14,11 +10,12 @@ pub struct Device {
     user_id: Uuid,
     name: String,
     events: HashMap<String, EventEmittable>,
+    actions: HashMap<String, ActionEmittable>,
 }
 
 impl Device {
-    pub fn new(id: &Uuid, physical_id: &str, user_id: &Uuid, name: &str, events: HashMap<String, EventEmittable>) -> Self {
-        return Self { id: id.clone(), physical_id: physical_id.to_string(), user_id: user_id.clone(), name: name.to_string(), events }
+    pub fn new(id: &Uuid, physical_id: &str, user_id: &Uuid, name: &str, events: HashMap<String, EventEmittable>, actions: HashMap<String, ActionEmittable>) -> Self {
+        return Self { id: id.clone(), physical_id: physical_id.to_string(), user_id: user_id.clone(), name: name.to_string(), events, actions }
     }
     pub fn id(&self) -> &Uuid {
         &self.id
@@ -44,141 +41,11 @@ impl Device {
     pub fn set_events(&mut self, events: HashMap<String, EventEmittable>) {
         self.events = events;
     }
-
-}
-
-#[derive(Debug, Clone)]
-pub struct EventEmittable {
-    format: EventFormat,
-    payload: HashMap<String, EventDataType>,
-}
-
-impl EventEmittable {
-    pub fn new(format: EventFormat, payload: HashMap<String, EventDataType>) -> Self {
-        Self { format, payload }
+    pub fn actions(&self) -> &HashMap<String, ActionEmittable> {
+        &self.actions
     }
-    pub fn format(&self) -> &EventFormat {
-        &self.format
+    pub fn set_actions(&mut self, actions: HashMap<String, ActionEmittable>) {
+        self.actions = actions;
     }
-    pub fn payload(&self) -> &HashMap<String, EventDataType> {
-        &self.payload
-    }
+
 }
-
-#[derive(Debug, Clone)]
-pub enum EventFormat {
-    Json,
-}
-
-impl EventFormat {
-    pub fn decode_event(&self, payload: &[u8]) -> Result<HashMap<String, EventDataValue>, EventFormatError> {
-        match self {
-            EventFormat::Json => {
-                // For simplicity, we assume the payload is a JSON string that can be parsed into a HashMap
-                // In a real application, you would use a JSON library to parse the payload
-                let json_str = String::from_utf8_lossy(payload);
-                let mut payload = HashMap::new();
-                let event_raw: HashMap<String, Value> =  serde_json::from_str(&json_str)
-                    .map_err(|e| EventFormatError::UnsupportedFormat(e.to_string()))?;
-                // iterate over the device's event_data to ensure all keys in payload are valid
-                for (key, value) in event_raw.into_iter() {
-                    let value = EventDataValue::try_from(value).map_err(|_| EventFormatError::UnsupportedFormat(key.clone()))?;
-                    payload.insert(key, value);
-                }
-                return Ok(payload);
-            },
-        }
-    }
-    pub fn encode_event(&self, event_payload: HashMap<String, EventDataValue>) -> Result<String, EventFormatError> {
-        match self {
-            EventFormat::Json => {
-                let payload_converted: HashMap<String, Value> = event_payload.iter().map(|(k ,v)| {
-                    let val = match v {
-                        crate::domain::event::EventDataValue::String(s) => Value::from(s.to_owned()),
-                        crate::domain::event::EventDataValue::Number(n) => Value::from(n.to_owned()),
-                        crate::domain::event::EventDataValue::Boolean(b) => Value::from(b.to_owned()),
-                    };
-                    (k.to_string(), val)
-                }).collect();
-                return serde_json::to_string(&payload_converted).map_err(|e| EventFormatError::UnsupportedFormat(e.to_string()));
-            },
-        }
-    }
-}
-
-impl Display for EventFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EventFormat::Json => write!(f, "json"),
-        }
-    }
-}
-
-impl TryFrom<&str> for EventFormat {
-    type Error = String;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value.to_lowercase().as_str() {
-            "json" => Ok(EventFormat::Json),
-            _ => Err(format!("Unsupported event format: {}", value)),
-        }
-    }
-}
-
-pub enum EventFormatError {
-    UnsupportedFormat(String),
-}
-
-impl Display for EventFormatError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EventFormatError::UnsupportedFormat(msg) => write!(f, "Unsupported event format: {}", msg),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EventDataType {
-    String,
-    Number,
-    Boolean,
-}
-
-impl EventDataType {
-    pub fn from_str(s: &str) -> Result<Self, String> {
-        match s.to_lowercase().as_str() {
-            "string" => Ok(EventDataType::String),
-            "number" => Ok(EventDataType::Number),
-            "boolean" => Ok(EventDataType::Boolean),
-            _ => Err(format!("Unsupported event data type: {}", s)),
-        }
-    }
-}
-
-impl Display for EventDataType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            EventDataType::String => write!(f, "string"),
-            EventDataType::Number => write!(f, "number"),
-            EventDataType::Boolean => write!(f, "boolean"),
-        }
-    }
-}
-
-impl Serialize for EventDataType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer {
-        serializer.serialize_str(&self.to_string())
-    }
-}
-
-impl<'de> Deserialize<'de> for EventDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de> {
-        let s = String::deserialize(deserializer)?;
-        EventDataType::from_str(&s).map_err(serde::de::Error::custom)
-    }
-}
-

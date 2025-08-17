@@ -74,13 +74,3 @@ impl<AO: AppOutbound + 'static> eframe::App for EguiApp<AO> {
     }
 }
 
-pub fn try_lock_until_success<T: Clone>(mutex: &Arc<Mutex<T>>) -> MutexGuard<'_, T> {
-    loop {
-        match mutex.lock() {
-            Ok(guard) => return guard,
-            Err(_) => {
-                mutex.clear_poison();
-            }
-        }
-    }
-}

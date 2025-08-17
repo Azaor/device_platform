@@ -4,8 +4,7 @@ use crate::{
     application::ports::{
         inbound::event_service::{EventService, EventServiceError},
         outbound::event_repository::{ CreateEventRepository, EventRepositoryError, GetEventRepository},
-    },
-    domain::{device::EventFormat, event::Event},
+    }, domain::event::{event::Event, event_format::EventFormat},
 };
 
 #[derive(Debug)]

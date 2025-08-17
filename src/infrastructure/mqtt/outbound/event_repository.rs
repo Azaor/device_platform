@@ -1,9 +1,7 @@
 use rumqttc::AsyncClient;
 
 use crate::{
-    application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError},
-    domain::{device::EventFormat, event::Event},
-    infrastructure::mqtt::mqtt_messages::{self, MqttActionType},
+    application::ports::outbound::event_repository::{CreateEventRepository, EventRepositoryError}, domain::event::{event::Event, event_format::EventFormat}, infrastructure::mqtt::mqtt_messages::{self, MqttActionType}
 };
 
 #[derive(Debug)]

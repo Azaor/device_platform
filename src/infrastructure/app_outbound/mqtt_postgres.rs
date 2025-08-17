@@ -1,29 +1,40 @@
 use std::{env::VarError, sync::Arc};
-use tokio::task;
+use tokio::{sync::Mutex, task};
 
 use crate::{
     application::{
         ports::{
-            app::AppOutbound, outbound::{
+            app::AppOutbound,
+            outbound::{
                 device_repository::{
-                    CreateDeviceRepository, DeleteDeviceRepository,
-                    GetDeviceRepository, UpdateDeviceRepository,
-                }, device_state_repository::{CreateDeviceStateRepository, DeleteDeviceStateRepository, GetDeviceStateRepository, UpdateDeviceStateRepository}, event_repository::{CreateEventRepository, GetEventRepository}
-            }
+                    CreateDeviceRepository, DeleteDeviceRepository, GetDeviceRepository,
+                    UpdateDeviceRepository,
+                },
+                device_state_repository::{
+                    CreateDeviceStateRepository, DeleteDeviceStateRepository,
+                    GetDeviceStateRepository, UpdateDeviceStateRepository,
+                },
+                event_repository::{CreateEventRepository, GetEventRepository},
+            },
         },
         usecases::{
-            manage_device::ManageDeviceService, manage_device_state::ManageDeviceStateService,
-            manage_event::ManageEventService,
+            manage_action::ManageActionService, manage_device::ManageDeviceService,
+            manage_device_state::ManageDeviceStateService, manage_event::ManageEventService,
         },
     },
     infrastructure::{
-        utils, db::postgres::{
-            device_repository::PostgresDeviceRepository, device_state_repository::PostgresDeviceStateRepository, event_repository::PostgresEventRepository
-        }, mqtt::outbound::{
-            device_repository::MqttDeviceRepository,
+        db::postgres::{
+            action_repository::PostgresActionRepository,
+            device_repository::PostgresDeviceRepository,
+            device_state_repository::PostgresDeviceStateRepository,
+            event_repository::PostgresEventRepository,
+        },
+        mqtt::outbound::{
+            action_repository::MqttActionRepository, device_repository::MqttDeviceRepository,
             device_state_repository::MqttDeviceStateRepository,
             event_repository::MqttEventRepository,
-        }
+        },
+        utils,
     },
 };
 
@@ -37,8 +48,17 @@ pub struct MqttAppOutbound {
             MqttDeviceRepository,
         >,
     >,
-    device_state_service: Arc<ManageDeviceStateService<MqttDeviceStateRepository, PostgresDeviceStateRepository, MqttDeviceStateRepository, MqttDeviceStateRepository>>,
+    device_state_service: Arc<
+        ManageDeviceStateService<
+            MqttDeviceStateRepository,
+            PostgresDeviceStateRepository,
+            MqttDeviceStateRepository,
+            MqttDeviceStateRepository,
+        >,
+    >,
     device_events_service: Arc<ManageEventService<MqttEventRepository, PostgresEventRepository>>,
+    device_actions_service:
+        Arc<ManageActionService<MqttActionRepository, PostgresActionRepository>>,
 }
 
 impl Clone for MqttAppOutbound {
@@ -46,7 +66,8 @@ impl Clone for MqttAppOutbound {
         Self {
             device_service: Arc::clone(&self.device_service),
             device_state_service: Arc::clone(&self.device_state_service),
-            device_events_service: Arc::clone(&self.device_events_service)
+            device_events_service: Arc::clone(&self.device_events_service),
+            device_actions_service: Arc::clone(&self.device_actions_service),
         }
     }
 }
@@ -61,25 +82,33 @@ impl MqttAppOutbound {
         let postgres_config = utils::load_postgres_config_from_env()?;
         let pool = utils::create_pool(postgres_config).await;
 
-        let mqtt_device_repo = MqttDeviceRepository::new(mqtt_client.clone(), &mqtt_config.device_topic);
-        let mqtt_device_state_repo = MqttDeviceStateRepository::new(mqtt_client.clone(), &mqtt_config.device_state_topic);
-        let mqtt_event_repo = MqttEventRepository::new(mqtt_client, &mqtt_config.event_topic);
+        let mqtt_device_repo =
+            MqttDeviceRepository::new(mqtt_client.clone(), &mqtt_config.device_topic);
+        let mqtt_device_state_repo =
+            MqttDeviceStateRepository::new(mqtt_client.clone(), &mqtt_config.device_state_topic);
+        let mqtt_event_repo =
+            MqttEventRepository::new(mqtt_client.clone(), &mqtt_config.event_topic);
+        let mqtt_action_repo = MqttActionRepository::new(mqtt_client, &mqtt_config.action_topic);
 
         let postgres_device_repo = PostgresDeviceRepository::new(pool.clone()).await;
         let postgres_device_state_repo = PostgresDeviceStateRepository::new(pool.clone()).await;
         let postgres_event_repo = PostgresEventRepository::new(pool.clone()).await;
+        let postgres_action_repo = PostgresActionRepository::new(pool.clone()).await;
 
         // Initialize the repositories
         postgres_device_repo.init().await;
         postgres_device_state_repo.init().await;
         postgres_event_repo.init().await;
+        postgres_action_repo.init().await;
 
         let arc_mqtt_device_repo = Arc::new(mqtt_device_repo);
         let arc_mqtt_event_repo = Arc::new(mqtt_event_repo);
         let arc_mqtt_device_state_repo = Arc::new(mqtt_device_state_repo);
+        let arc_mqtt_action_repo = Arc::new(Mutex::new(mqtt_action_repo));
         let arc_postgres_device_repo = Arc::new(postgres_device_repo);
         let arc_postgres_event_repo = Arc::new(postgres_event_repo);
         let arc_postgres_device_state_repo = Arc::new(postgres_device_state_repo);
+        let arc_postgres_action_repo = Arc::new(Mutex::new(postgres_action_repo));
         let device_service = Arc::new(ManageDeviceService {
             create_repo: arc_mqtt_device_repo.clone(),
             get_repo: arc_postgres_device_repo,
@@ -96,17 +125,17 @@ impl MqttAppOutbound {
             create_repo: arc_mqtt_event_repo,
             get_repo: arc_postgres_event_repo,
         });
-
-        task::spawn(async move {
-            while let Ok(_) = event_loop.poll().await {
-                
-            }
+        let device_actions_service = Arc::new(ManageActionService {
+            create_repo: arc_mqtt_action_repo,
+            get_repo: arc_postgres_action_repo,
         });
+        task::spawn(async move { while let Ok(_) = event_loop.poll().await {} });
 
         Ok(MqttAppOutbound {
             device_service,
             device_state_service,
             device_events_service,
+            device_actions_service,
         })
     }
 }
@@ -114,7 +143,14 @@ impl MqttAppOutbound {
 impl AppOutbound for MqttAppOutbound {
     fn get_device_state_service(
         &self,
-    ) -> &Arc<ManageDeviceStateService<impl CreateDeviceStateRepository, impl GetDeviceStateRepository, impl UpdateDeviceStateRepository, impl DeleteDeviceStateRepository>> {
+    ) -> &Arc<
+        ManageDeviceStateService<
+            impl CreateDeviceStateRepository,
+            impl GetDeviceStateRepository,
+            impl UpdateDeviceStateRepository,
+            impl DeleteDeviceStateRepository,
+        >,
+    > {
         &self.device_state_service
     }
 
@@ -135,5 +171,15 @@ impl AppOutbound for MqttAppOutbound {
         >,
     > {
         &self.device_service
+    }
+    fn get_action_service(
+        &self,
+    ) -> &Arc<
+        crate::application::usecases::manage_action::ManageActionService<
+            impl crate::application::ports::outbound::action_repository::CreateActionRepository,
+            impl crate::application::ports::outbound::action_repository::HandleActionRepository,
+        >,
+    > {
+        &self.device_actions_service
     }
 }
